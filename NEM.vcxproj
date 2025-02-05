@@ -133,6 +133,9 @@
   <ItemGroup>
     <ClInclude Include="class.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="input.inp" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
