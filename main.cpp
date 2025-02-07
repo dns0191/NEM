@@ -3,8 +3,13 @@
 
 int main() {
 	double differ = 1e-6;
-	MultiGroupNode BENCH;
-	BENCH.Initializer("input.inp");
+	bool run = true;
+	MultiGroupNode*** BENCH;
+	while(run)
+	{
+		
+	}
+	
 
 	return 0;
 }
