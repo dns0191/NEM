@@ -1,10 +1,5 @@
 #pragma once
 
-#include <iostream>
-#include <ostream>
-#include <string>
-#include <vector>
-
 class Node {
 public:
     double getNodeWidth(int direction);
@@ -16,7 +11,7 @@ class MultiGroupNode {
 private:
     static int number_of_groups;
     static int dim;
-    static double* DL[3][3], *node_width, * flux_avg, * old_flux, *new_flux, * out_current[3][2];
+    static double* DL[3][3], * node_width, * flux_avg, * old_flux, *new_flux, * out_current[3][2];
     /*
 	DL: Transverse Leakage
     */
@@ -34,7 +29,7 @@ private:
     static double* C0[3], * C1[3], * C2[3], * C3[3], * C4[3];
     static double* B3[3][3], * B4[3][3];
     static double* SRC, * SRC1, * SRC2;
-    //SRC: Node Average Flux -> s 
+    //SRC: Node Average Flux -> s
     static int neighbor_node[6];
     static double mgxs;
 
@@ -45,11 +40,11 @@ public:
     static void updateTransverseLeakage(int u, int group);
     static void getDimension(double* matrix);
     static double getNodeWidth(int direction);
-    static double getSurfaceFlux(int u, bool side, unsigned int number_of_group);
-    static double getSurfaceNetCurrent(int direction, bool side, unsigned int number_of_group);
-    static double getBeta(double direction, unsigned int number_of_group);
-    static double getDiffusionCoefficient(unsigned int number_of_group);
-    static double getIncomingCurrent(int direction, bool side, unsigned int number_of_group);
+    static double getSurfaceFlux(int u, bool side, int number_of_group);
+    static double getSurfaceNetCurrent(int direction, bool side, int number_of_group);
+    static double getBeta(int direction, int number_of_group);
+    static double getDiffusionCoefficient(int number_of_group);
+    static double getIncomingCurrent(int direction, bool side, int number_of_group);
     static Node* getNeighborNode(int direction, bool side);
     //static void Initializer(const std::string&filename);
     //static double getDiffer(double* flux1, double* flux2);

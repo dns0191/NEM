@@ -1,9 +1,5 @@
 #include "class.h"
 #include "Function.h"
-#include <cmath>
-#include <string>
-#include <fstream>
-#include <sstream>
 
 constexpr auto LEFT_SIDE = false;
 constexpr auto RIGHT_SIDE = true;
@@ -123,30 +119,30 @@ void MultiGroupNode::getDimension(double* matrix)
 
 double MultiGroupNode::getNodeWidth(int direction)
 {
-    return 0;
+    return node_width[direction];
 }
 
-double MultiGroupNode::getSurfaceFlux(int u, bool side, unsigned int number_of_group)
+double MultiGroupNode::getSurfaceFlux(int u, bool side, int number_of_group)
 {
     return 0;
 }
 
-double MultiGroupNode::getSurfaceNetCurrent(int direction, bool side, unsigned int number_of_group)
+double MultiGroupNode::getSurfaceNetCurrent(int direction, bool side, int number_of_group)
 {
     return 0;
 }
 
-double MultiGroupNode::getBeta(double direction, unsigned int number_of_group)
+double MultiGroupNode::getBeta(int direction, int number_of_group)
 {
-    return 0;
+    return getDiffusionCoefficient(number_of_group) / getNodeWidth(direction);
 }
 
-double MultiGroupNode::getDiffusionCoefficient(unsigned int number_of_group)
+double MultiGroupNode::getDiffusionCoefficient(int number_of_group)
 {
-    return 0;
+    return D_c[number_of_group][number_of_group];
 }
 
-double MultiGroupNode::getIncomingCurrent(int direction, bool side, unsigned int number_of_group)
+double MultiGroupNode::getIncomingCurrent(int direction, bool side, int number_of_group)
 {
     return 0;
 }
