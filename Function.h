@@ -1,4 +1,7 @@
-﻿#pragma once
-
-void GaussianElimination(double** A, double* X, double* B, int n);
-void add_product(double* A, double* B, double* C, double* D, int n);
+#pragma once
+#include <stdexcept>
+#include <fstream>
+#include <sstream>
+#include <vector>
+double* product_matrix(double** A, double* C, int ng);
+void initializer(const std::string& filename);

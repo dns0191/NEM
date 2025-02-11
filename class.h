@@ -1,16 +1,22 @@
 #pragma once
+#include<unordered_map>
+
+class MultiGroupNode;
+std::unordered_map<int, MultiGroupNode*> node_map;
+
 
 class MultiGroupNode {
 private:
     static int number_of_groups;
     static int dim;
+    int id, region;
     double** DL[3], * node_width, * flux_avg, * old_flux, *new_flux, ** out_current[2];
     /*
 	DL: Transverse Leakage
     */
-    double** A, ** M1, ** M2, ** M3[3], ** M4[3], ** D_c, **MM;
+    double** A, *** M1, *** M2, *** M3, *** M4, ** D_c, **MM;
     /*
-	A: Removal Cross Section
+	A: Removal Cross_Section
     M1: AC1 + DL1
 	M2: AC2 + DL2
     M3: (6/node_width^2 + 1/10 * A)^-1 * M1
@@ -24,7 +30,8 @@ private:
     double* SRC, * SRC1, * SRC2;
     //SRC: Node Average Flux -> s
     int* neighbor_node[2];
-    double mgxs, L_l, L_r;
+    double mgxs;
+	double L_l, L_r;
     MultiGroupNode* l_node, * r_node;
 
 public:
@@ -40,6 +47,8 @@ public:
     double getDiffusionCoefficient(int number_of_group) const;
     double getIncomingCurrent(int direction, bool side, int number_of_group) const;
     double getAverageTransverseLeakage(int direction, int group) const;
-    MultiGroupNode* getNeighborNode(int direction, bool side);
+    MultiGroupNode* getNeighborNode(int direction, bool side) const;
+    static void GaussianElimination(double** M, double*& C, double* src, int ng);
+    void add_product(double*& src, double**& M, double* C, int ng);
 };
 

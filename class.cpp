@@ -1,6 +1,12 @@
 #include "class.h"
 #include "Function.h"
 #include <malloc.h>
+#include <queue>
+#include <stdexcept>
+#include <stdexcept>
+#include <fstream>
+#include <sstream>
+#include <vector>
 
 constexpr auto LEFT_SIDE = false;
 constexpr auto RIGHT_SIDE = true;
@@ -27,8 +33,8 @@ void MultiGroupNode::makeOneDimensionalFlux(double** C[5], double* source_avg, d
 			SRC1[g] = DL[u][1][g];
 			SRC2[g] = DL[u][2][g];
 		}
-		add_product(SRC1, SRC1, M1[u], C[u][1], ng);
-		add_product(SRC2, SRC2, M2[u], C[u][2], ng);
+		add_product(SRC1, M1[u], C[u][1], ng);
+		add_product(SRC2, M2[u], C[u][2], ng);
 		GaussianElimination(M3[u], C[u][3], SRC1, ng);
 		GaussianElimination(M4[u], C[u][4], SRC2, ng);
 	}
@@ -186,14 +192,74 @@ double MultiGroupNode::getSurfaceNetCurrent(int direction, bool side, int number
 }
 
 
-MultiGroupNode* MultiGroupNode::getNeighborNode(int direction, bool side)
+MultiGroupNode* MultiGroupNode::getNeighborNode(int direction, bool side) const
 {
-	if (neighbor_node[side][direction] != 0)
+	const int neighbor_id = neighbor_node[side][direction];
+
+	if (neighbor_id != 0)
 	{
-		
+		const auto it = node_map.find(neighbor_id);
+		if(it != node_map.end())
+		{
+			return it->second;
+		}
+		else
+		{
+			return nullptr;
+		}
 	}
 	else
 	{
-		
+		return nullptr;
+	}
+}
+
+void MultiGroupNode::add_product(double*& src, double**& M, double* C, int ng)
+{
+	*M = product_matrix(this->A, C, ng);
+	for (int i=0; i<ng; i++)
+	{
+		src[i] += (*M)[i];
+	}
+}
+
+void MultiGroupNode::GaussianElimination(double** M, double*& C, double* src, int ng)
+{
+	// 전진 소거 단계 (부분 피벗팅 추가)
+	for (int i = 0; i < ng; i++) {
+		// 피벗 선택 (가장 큰 값으로 교환)
+		int max_row = i;
+		for (int j = i + 1; j < ng; j++) {
+			if (fabs(M[j][i]) > fabs(M[max_row][i])) {
+				max_row = j;
+			}
+		}
+		if (max_row != i) {
+			std::swap(M[i], M[max_row]);
+			std::swap(src[i], src[max_row]);
+		}
+
+		// 피벗이 0이면 해가 없거나 무수히 많음
+		if (M[i][i] == 0.0) {
+			throw std::runtime_error("Singular matrix: No unique solution exists.");
+		}
+
+		// 소거 작업
+		for (int j = i + 1; j < ng; j++) {
+			double factor = M[j][i] / M[i][i];
+			for (int k = i; k < ng; k++) {
+				M[j][k] -= factor * M[i][k];
+			}
+			src[j] -= factor * src[i];
+		}
+	}
+
+	// 후진 대입 단계
+	for (int i = ng - 1; i >= 0; i--) {
+		C[i] = src[i];
+		for (int j = i + 1; j < ng; j++) {
+			C[i] -= M[i][j] * C[j];
+		}
+		C[i] /= M[i][i];
 	}
 }
