@@ -1,8 +1,6 @@
 #include "class.h"
 #include "Function.h"
-#include <malloc.h>
 #include <queue>
-#include <stdexcept>
 #include <stdexcept>
 #include <fstream>
 #include <sstream>
@@ -117,15 +115,6 @@ void MultiGroupNode::updateTransverseLeakage(int direction, int group)
 
 	DL[direction][1][group] = d_c * (L_r - L_l) / 2.0;
 	DL[direction][2][group] = d_c * (L_r + L_l - 2.0 * DL0_c / d_c) / 2.0;
-}
-
-void MultiGroupNode::getDimension()
-{
-	dim = 0;
-	for (int i = 0; i < static_cast<int>(_msize(node_width)/sizeof(double*)); i++)
-	{
-		dim += 1;
-	}
 }
 
 double MultiGroupNode::getNodeWidth(int direction) const
@@ -246,7 +235,7 @@ void MultiGroupNode::GaussianElimination(double** M, double*& C, double* src, in
 
 		// 소거 작업
 		for (int j = i + 1; j < ng; j++) {
-			double factor = M[j][i] / M[i][i];
+			double const factor = M[j][i] / M[i][i];
 			for (int k = i; k < ng; k++) {
 				M[j][k] -= factor * M[i][k];
 			}
@@ -262,4 +251,196 @@ void MultiGroupNode::GaussianElimination(double** M, double*& C, double* src, in
 		}
 		C[i] /= M[i][i];
 	}
+}
+
+MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dimension)
+{
+	id = node_id;
+	region = node_region;
+	// 동적 메모리 할당 및 초기화
+	node_width = new double[dimension];
+	flux_avg = new double[group];
+	old_flux = new double[group];
+	new_flux = new double[group];
+	SRC = new double[group];
+	SRC1 = new double[group];
+	SRC2 = new double[group];
+
+	DL = new double** [dimension];
+	for (int i = 0; i < dimension; ++i) {
+		DL[i] = new double* [3];
+		for (int j = 0; j < 3; ++j) {
+			DL[i][j] = new double[group];
+			std::memset(DL[i][j], 0, group * sizeof(double));
+		}
+	}
+
+	A = new double* [group];
+	for (int i = 0; i < group; ++i) {
+		A[i] = new double[group];
+		std::memset(A[i], 0, group * sizeof(double));
+	}
+
+	Q = new double** [dimension];
+	for (int i = 0; i < dimension; ++i) {
+		Q[i] = new double* [4];
+		for (int j = 0; j < 4; ++j) {
+			Q[i][j] = new double[group];
+			std::memset(Q[i][j], 0, group * sizeof(double));
+		}
+	}
+
+	out_current = new double** [dimension];
+	for (int i = 0; i < dimension; ++i) {
+		out_current[i] = new double* [2];
+		for (int j = 0; j < 2; ++j) {
+			out_current[i][j] = new double[group];
+			std::memset(out_current[i][j], 0, group * sizeof(double));
+		}
+	}
+	M1 = new double** [dimension];
+	M2 = new double** [dimension];
+	M3 = new double** [dimension];
+	M4 = new double** [dimension];
+
+	
+
+	for (int i = 0; i < dimension; ++i) {
+		M1[i] = new double* [group];
+		M2[i] = new double* [group];
+		M3[i] = new double* [group];
+		M4[i] = new double* [group];
+
+		for (int j = 0; j < group; ++j) {
+			M1[i][j] = new double[group];
+			M2[i][j] = new double[group];
+			M3[i][j] = new double[group];
+			M4[i][j] = new double[group];
+			std::memset(M1[i][j], 0, group * sizeof(double));
+			std::memset(M2[i][j], 0, group * sizeof(double));
+			std::memset(M3[i][j], 0, group * sizeof(double));
+			std::memset(M4[i][j], 0, group * sizeof(double));
+		}
+	}
+
+	D_c = new double* [group];
+	MM = new double* [group];
+	for (int i = 0; i < group; ++i) {
+		D_c[i] = new double[group];
+		MM[i] = new double[group];
+		std::memset(D_c[i], 0, group * sizeof(double));
+		std::memset(MM[i], 0, group * sizeof(double));
+	}
+
+	C0 = new double* [group];
+	C1 = new double* [group];
+	C2 = new double* [group];
+	C3 = new double* [group];
+	C4 = new double* [group];
+
+	for (int i = 0; i < group; ++i) {
+		C0[i] = new double[group];
+		C1[i] = new double[group];
+		C2[i] = new double[group];
+		C3[i] = new double[group];
+		C4[i] = new double[group];
+		std::memset(C0[i], 0, group * sizeof(double));
+		std::memset(C1[i], 0, group * sizeof(double));
+		std::memset(C2[i], 0, group * sizeof(double));
+		std::memset(C3[i], 0, group * sizeof(double));
+		std::memset(C4[i], 0, group * sizeof(double));
+	}
+
+	neighbor_node[0] = new int[dimension];
+	neighbor_node[1] = new int[dimension];
+	std::memset(neighbor_node[0], 0, dimension * sizeof(int));
+	std::memset(neighbor_node[1], 0, dimension * sizeof(int));
+
+	l_node = nullptr;
+	r_node = nullptr;
+	mgxs = 0.0;
+	L_l = 0.0;
+	L_r = 0.0;
+}
+
+MultiGroupNode::~MultiGroupNode()
+{
+	// 동적 메모리 해제
+	delete[] node_width;
+	delete[] flux_avg;
+	delete[] old_flux;
+	delete[] new_flux;
+	delete[] SRC;
+	delete[] SRC1;
+	delete[] SRC2;
+
+	for (int i = 0; i < dim; ++i) {
+		for (int j = 0; j < 3; ++j) {
+			delete[] DL[i][j];
+		}
+		delete[] DL[i];
+	}
+	delete[] DL;
+
+	for (int i = 0; i < number_of_groups; ++i) {
+		delete[] A[i];
+	}
+	delete[] A;
+
+	for (int i = 0; i < dim; ++i) {
+		for (int j = 0; j < number_of_groups; ++j) {
+			delete[] M1[i][j];
+			delete[] M2[i][j];
+			delete[] M3[i][j];
+			delete[] M4[i][j];
+		}
+		delete[] M1[i];
+		delete[] M2[i];
+		delete[] M3[i];
+		delete[] M4[i];
+
+	}
+
+	delete[] M1;
+	delete[] M2;
+	delete[] M3;
+	delete[] M4;
+	for (int i = 0; i < dim; ++i) {
+		for (int j = 0; j < 4; ++j) {
+			delete[] Q[i][j];
+		}
+		delete[] Q[i];
+	}
+	delete[] Q;
+
+	for (int i = 0; i < dim; ++i) {
+		for (int j = 0; j < 2; ++j) {
+			delete[] out_current[i][j];
+		}
+		delete[] out_current[i];
+	}
+	delete[] out_current;
+
+	for (int i = 0; i < number_of_groups; ++i) {
+		delete[] D_c[i];
+		delete[] MM[i];
+	}
+	delete[] D_c;
+	delete[] MM;
+
+	for (int i = 0; i < number_of_groups; ++i) {
+		delete[] C0[i];
+		delete[] C1[i];
+		delete[] C2[i];
+		delete[] C3[i];
+		delete[] C4[i];
+	}
+	delete[] C0;
+	delete[] C1;
+	delete[] C2;
+	delete[] C3;
+	delete[] C4;
+
+	delete[] neighbor_node[0];
+	delete[] neighbor_node[1];
 }
