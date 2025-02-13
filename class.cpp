@@ -298,16 +298,15 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 			std::memset(out_current[i][j], 0, group * sizeof(double));
 		}
 	}
+
 	M1 = new double* [dimension];
 	M2 = new double* [dimension];
 	M3 = new double** [dimension];
 	M4 = new double** [dimension];
 
-	
-
 	for (int i = 0; i < dimension; ++i) {
-		M1[i] = new double [group];
-		M2[i] = new double [group];
+		M1[i] = new double[group];
+		M2[i] = new double[group];
 		M3[i] = new double* [group];
 		M4[i] = new double* [group];
 
@@ -322,7 +321,7 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 		}
 	}
 
-	D_c = new double [group];
+	D_c = new double[group];
 	MM = new double* [group];
 	for (int i = 0; i < group; ++i) {
 		MM[i] = new double[group];
@@ -348,6 +347,12 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 		std::memset(C4[i], 0, group * sizeof(double));
 	}
 
+	mgxs = new double* [4];
+	for (int i = 0; i < 4; ++i) {
+		mgxs[i] = new double[group];
+		std::memset(mgxs[i], 0, group * sizeof(double));
+	}
+
 	neighbor_node[0] = new int[dimension];
 	neighbor_node[1] = new int[dimension];
 	std::memset(neighbor_node[0], 0, dimension * sizeof(int));
@@ -355,7 +360,6 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 
 	l_node = nullptr;
 	r_node = nullptr;
-	mgxs = 0.0;
 	L_l = 0.0;
 	L_r = 0.0;
 }
@@ -393,13 +397,13 @@ MultiGroupNode::~MultiGroupNode()
 		delete[] M2[i];
 		delete[] M3[i];
 		delete[] M4[i];
-
 	}
 
 	delete[] M1;
 	delete[] M2;
 	delete[] M3;
 	delete[] M4;
+
 	for (int i = 0; i < dim; ++i) {
 		for (int j = 0; j < 4; ++j) {
 			delete[] Q[i][j];
@@ -434,6 +438,11 @@ MultiGroupNode::~MultiGroupNode()
 	delete[] C2;
 	delete[] C3;
 	delete[] C4;
+
+	for (int i = 0; i < 4; ++i) {
+		delete[] mgxs[i];
+	}
+	delete[] mgxs;
 
 	delete[] neighbor_node[0];
 	delete[] neighbor_node[1];

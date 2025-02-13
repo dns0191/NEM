@@ -29,7 +29,7 @@ private:
     double* SRC, * SRC1, * SRC2;
     //SRC: Node Average Flux -> s
     int* neighbor_node[2];
-    double mgxs;
+    double** mgxs;
 	double L_l, L_r;
     MultiGroupNode* l_node, * r_node;
 
