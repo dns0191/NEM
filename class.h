@@ -14,7 +14,7 @@ private:
     /*
 	DL: Transverse Leakage
     */
-    double** A, *** M1, *** M2, *** M3, *** M4, ** D_c, **MM;
+    double** A, ** M1, ** M2, *** M3, *** M4, * D_c, **MM;
     /*
 	A: Removal Cross_Section
     M1: AC1 + DL1
@@ -46,7 +46,7 @@ private:
     double getAverageTransverseLeakage(int direction, int group) const;
     MultiGroupNode* getNeighborNode(int direction, bool side) const;
     static void GaussianElimination(double** M, double*& C, double* src, int ng);
-    void add_product(double*& src, double**& M, double* C, int ng);
+    void add_product(double* src, double*& M, double* C, int ng);
 
 public:
     MultiGroupNode(int node_id, int node_region, int group, int dimension);

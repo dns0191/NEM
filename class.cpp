@@ -134,7 +134,7 @@ double MultiGroupNode::getBeta(int direction, int number_of_group) const
 
 double MultiGroupNode::getDiffusionCoefficient(int number_of_group) const
 {
-	return D_c[number_of_group][number_of_group];
+	return D_c[number_of_group];
 }
 
 double MultiGroupNode::getIncomingCurrent(int direction, bool side, int number_of_group) const
@@ -203,12 +203,12 @@ MultiGroupNode* MultiGroupNode::getNeighborNode(int direction, bool side) const
 	}
 }
 
-void MultiGroupNode::add_product(double*& src, double**& M, double* C, int ng)
+void MultiGroupNode::add_product(double* src, double*& M, double* C, int ng)
 {
-	*M = product_matrix(this->A, C, ng);
+	M = product_matrix(this->A, C, ng);
 	for (int i=0; i<ng; i++)
 	{
-		src[i] += (*M)[i];
+		src[i] += M[i];
 	}
 }
 
@@ -298,37 +298,34 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 			std::memset(out_current[i][j], 0, group * sizeof(double));
 		}
 	}
-	M1 = new double** [dimension];
-	M2 = new double** [dimension];
+	M1 = new double* [dimension];
+	M2 = new double* [dimension];
 	M3 = new double** [dimension];
 	M4 = new double** [dimension];
 
 	
 
 	for (int i = 0; i < dimension; ++i) {
-		M1[i] = new double* [group];
-		M2[i] = new double* [group];
+		M1[i] = new double [group];
+		M2[i] = new double [group];
 		M3[i] = new double* [group];
 		M4[i] = new double* [group];
 
+		std::memset(M1[i], 0, group * sizeof(double));
+		std::memset(M2[i], 0, group * sizeof(double));
+
 		for (int j = 0; j < group; ++j) {
-			M1[i][j] = new double[group];
-			M2[i][j] = new double[group];
 			M3[i][j] = new double[group];
 			M4[i][j] = new double[group];
-			std::memset(M1[i][j], 0, group * sizeof(double));
-			std::memset(M2[i][j], 0, group * sizeof(double));
 			std::memset(M3[i][j], 0, group * sizeof(double));
 			std::memset(M4[i][j], 0, group * sizeof(double));
 		}
 	}
 
-	D_c = new double* [group];
+	D_c = new double [group];
 	MM = new double* [group];
 	for (int i = 0; i < group; ++i) {
-		D_c[i] = new double[group];
 		MM[i] = new double[group];
-		std::memset(D_c[i], 0, group * sizeof(double));
 		std::memset(MM[i], 0, group * sizeof(double));
 	}
 
@@ -389,8 +386,6 @@ MultiGroupNode::~MultiGroupNode()
 
 	for (int i = 0; i < dim; ++i) {
 		for (int j = 0; j < number_of_groups; ++j) {
-			delete[] M1[i][j];
-			delete[] M2[i][j];
 			delete[] M3[i][j];
 			delete[] M4[i][j];
 		}
@@ -422,7 +417,6 @@ MultiGroupNode::~MultiGroupNode()
 	delete[] out_current;
 
 	for (int i = 0; i < number_of_groups; ++i) {
-		delete[] D_c[i];
 		delete[] MM[i];
 	}
 	delete[] D_c;
