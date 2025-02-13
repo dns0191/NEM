@@ -68,7 +68,7 @@ void initializeNodesFromInput(const std::string& filename) {
     }
     file.close();
 
-    // ✅ 차원에 따라 노드 저장소 초기화
+    // 차원에 따라 노드 저장소 초기화
     if (DIM == 1) {
         nodeGrid1D.resize(BENCH.size(), nullptr);
         for (size_t i = 0; i < BENCH.size(); ++i) {

@@ -392,7 +392,7 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	{
 		for (int i=0; i<4; i++)
 		{
-			for (int g=0; i<group; g++)
+			for (int g=0; g<group; g++)
 			{
 				mgxs[i][g] = crossSections[region][i][g];
 			}
