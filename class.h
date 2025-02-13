@@ -1,8 +1,6 @@
 #pragma once
-#include<unordered_map>
 
 class MultiGroupNode;
-std::unordered_map<int, MultiGroupNode*> node_map;
 
 
 class MultiGroupNode {
