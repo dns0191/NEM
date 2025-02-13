@@ -1,12 +1,21 @@
 #pragma once
+#include <unordered_map>
+#include <vector>
 
 class MultiGroupNode;
 
+//  영역(region)별 그룹(group)별 단면적 저장 (unordered_map 사용)
+extern std::unordered_map<int, std::vector<std::vector<double>>> crossSections;
+
+//  노드 저장소 (1D, 2D, 3D)
+extern std::vector<MultiGroupNode*> nodeGrid1D;
+extern std::vector<std::vector<MultiGroupNode*>> nodeGrid2D;
+extern std::vector<std::vector<std::vector<MultiGroupNode*>>> nodeGrid3D;
 
 class MultiGroupNode {
 private:
-    static int number_of_groups;
-    static int dim;
+    int number_of_groups;
+    int dim;
     int id, region;
     double*** DL, * node_width, * flux_avg, * old_flux, *new_flux, *** out_current;
     /*
@@ -47,7 +56,8 @@ private:
     void add_product(double* src, double*& M, double* C, int ng);
 
 public:
-    MultiGroupNode(int node_id, int node_region, int group, int dimension);
+    MultiGroupNode(int node_id, int node_region, int group, int dimension, double* width);
     ~MultiGroupNode();
+    void getNodeInformation() const;
 };
 

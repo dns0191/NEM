@@ -6,11 +6,8 @@
 int main() {
 	double differ = 1e-6;
 	bool run = true;
-	
-	
-	while(run)
-	{
-		run = false;
-	}
+	initializeNodesFromInput("input.inp");
+	debugPrintNodes();
+
 	return 0;
 }

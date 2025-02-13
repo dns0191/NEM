@@ -22,11 +22,13 @@ void initializeNodesFromInput(const std::string& filename) {
         throw std::runtime_error("Failed to open input file.");
     }
 
-    int DIM = 1;  // 기본 차원
+    int DIM = 1;
     int GROUP_NUM = 1;
     std::vector<int> BENCH;
     std::vector<double> nodeWidths;
     bool readingXS = false;
+    bool readingNodeWidth = false;
+    bool readingBench = false;
 
     std::string line;
     while (std::getline(file, line)) {
@@ -41,25 +43,33 @@ void initializeNodesFromInput(const std::string& filename) {
             iss >> GROUP_NUM;
         }
         else if (key == "NODE_WIDTH") {
-            double width;
-            while (iss >> width) {
-                nodeWidths.push_back(width);
-            }
+            readingNodeWidth = true;
         }
         else if (key == "BENCH") {
-            int id;
-            while (iss >> id) {
-                BENCH.push_back(id);
-            }
+            readingBench = true;
         }
         else if (key == "XS") {
             readingXS = true;
         }
+        else if (readingNodeWidth) {
+            double width;
+            while (iss >> width) {
+                nodeWidths.push_back(width);
+            }
+            readingNodeWidth = false; // 읽기 완료 후 false로 설정
+        }
+        else if (readingBench) {
+            int id;
+            while (iss >> id) {
+                BENCH.push_back(id);
+            }
+            readingBench = false; // 읽기 완료 후 false로 설정
+        }
         else if (readingXS && !key.empty()) {
             int region_id = std::stoi(key);
-            std::vector<std::vector<double>> xs_values(GROUP_NUM, std::vector<double>(8, 0.0));  // 기본 0으로 초기화
-            for (int g = 0; g < GROUP_NUM; ++g) {
-                for (int i = 0; i < 8; ++i) {
+            std::vector<std::vector<double>> xs_values(GROUP_NUM, std::vector<double>(4, 0.0));
+            for (int i = 0; i < 4; ++i) {
+                for (int g = 0; g < GROUP_NUM; ++g) {
                     iss >> xs_values[g][i];
                 }
             }
@@ -68,42 +78,119 @@ void initializeNodesFromInput(const std::string& filename) {
     }
     file.close();
 
-    // 차원에 따라 노드 저장소 초기화
+    // ✅ 차원별 노드 생성 (오버플로 방지 추가)
     if (DIM == 1) {
         nodeGrid1D.resize(BENCH.size(), nullptr);
         for (size_t i = 0; i < BENCH.size(); ++i) {
-            int region = BENCH[i];  // 노드의 영역 ID
-            nodeGrid1D[i] = new MultiGroupNode(i, region, GROUP_NUM, 1);
+            int region = BENCH[i];
+            nodeGrid1D[i] = new MultiGroupNode(static_cast<int>(i), region, GROUP_NUM, 1, nodeWidths.data());
         }
     }
     else if (DIM == 2) {
-        int x_size = nodeWidths.size();
-        int y_size = BENCH.size() / x_size;
-
+        if (nodeWidths.empty()) {
+            throw std::runtime_error("Error: NODE_WIDTH is missing in input file.");
+        }
+        size_t x_size = nodeWidths.size();
+        if (x_size == 0) {
+            throw std::runtime_error("Error: x_size is 0. Possible NODE_WIDTH reading error.");
+        }
+        if (BENCH.size() % x_size != 0) {
+            throw std::runtime_error("Error: BENCH size is not a multiple of x_size. Check input file.");
+        }
+        size_t y_size = BENCH.size() / x_size;
         nodeGrid2D.resize(x_size, std::vector<MultiGroupNode*>(y_size, nullptr));
-        for (int x = 0; x < x_size; ++x) {
-            for (int y = 0; y < y_size; ++y) {
-                int region = BENCH[x * y_size + y];  // 노드의 영역 ID
-                nodeGrid2D[x][y] = new MultiGroupNode(x * y_size + y, region, GROUP_NUM, 2);
+
+        for (size_t x = 0; x < x_size; ++x) {
+            for (size_t y = 0; y < y_size; ++y) {
+                size_t index = x * y_size + y;
+                int region = BENCH[index];
+                nodeGrid2D[x][y] = new MultiGroupNode(static_cast<int>(index), region, GROUP_NUM, 2, nodeWidths.data());
             }
         }
     }
     else if (DIM == 3) {
-        int x_size = nodeWidths.size();
-        int y_size = nodeWidths.size();
-        int z_size = BENCH.size() / (x_size * y_size);
+        if (nodeWidths.empty()) {
+            throw std::runtime_error("Error: NODE_WIDTH is missing in input file.");
+        }
+        size_t x_size = nodeWidths.size();
+        size_t y_size = nodeWidths.size();
+        if (x_size == 0 || y_size == 0) {
+            throw std::runtime_error("Error: x_size or y_size is 0. Check NODE_WIDTH in input file.");
+        }
+        if (BENCH.size() % (x_size * y_size) != 0) {
+            throw std::runtime_error("Error: BENCH size is not a multiple of x_size * y_size.");
+        }
+        size_t z_size = BENCH.size() / (x_size * y_size);
 
         nodeGrid3D.resize(x_size, std::vector<std::vector<MultiGroupNode*>>(
             y_size, std::vector<MultiGroupNode*>(z_size, nullptr)));
 
-        for (int x = 0; x < x_size; ++x) {
-            for (int y = 0; y < y_size; ++y) {
-                for (int z = 0; z < z_size; ++z) {
-                    int region = BENCH[x * y_size * z_size + y * z_size + z];  // 노드의 영역 ID
-                    nodeGrid3D[x][y][z] = new MultiGroupNode(
-                        x * y_size * z_size + y * z_size + z, region, GROUP_NUM, 3);
+        for (size_t x = 0; x < x_size; ++x) {
+            for (size_t y = 0; y < y_size; ++y) {
+                for (size_t z = 0; z < z_size; ++z) {
+                    size_t index = x * y_size * z_size + y * z_size + z;
+                    int region = BENCH[index];
+                    nodeGrid3D[x][y][z] = new MultiGroupNode(static_cast<int>(index), region, GROUP_NUM, 3, nodeWidths.data());
                 }
             }
         }
     }
 }
+
+
+
+
+
+// ✅ 초기화된 노드 데이터 확인
+void debugPrintNodes() {
+    std::cout << "==== Node Data Debugging ====" << "\n";
+
+    if (!nodeGrid1D.empty()) {
+        std::cout << " 1D Node Grid Detected (" << nodeGrid1D.size() << " nodes)\n";
+        for (const auto& node : nodeGrid1D) {
+            if (node == nullptr) continue;
+            node->getNodeInformation();
+        }
+    }
+
+    if (!nodeGrid2D.empty()) {
+        std::cout << " 2D Node Grid Detected (" << nodeGrid2D.size() << " x " << nodeGrid2D[0].size() << ")\n";
+        for (size_t x = 0; x < nodeGrid2D.size(); ++x) {
+            for (size_t y = 0; y < nodeGrid2D[x].size(); ++y) {
+                const MultiGroupNode* node = nodeGrid2D[x][y];
+                if (node == nullptr) continue;
+                node->getNodeInformation();
+            }
+        }
+    }
+
+    if (!nodeGrid3D.empty()) {
+        std::cout << " 3D Node Grid Detected (" << nodeGrid3D.size() << " x " << nodeGrid3D[0].size() << " x " << nodeGrid3D[0][0].size() << ")\n";
+        for (size_t x = 0; x < nodeGrid3D.size(); ++x) {
+            for (size_t y = 0; y < nodeGrid3D[x].size(); ++y) {
+                for (size_t z = 0; z < nodeGrid3D[x][y].size(); ++z) {
+                    const MultiGroupNode* node = nodeGrid3D[x][y][z];
+                    if (node == nullptr) continue;
+                    node->getNodeInformation();
+                }
+            }
+        }
+    }
+
+    std::cout << "==== Cross Sections Data ====" << "\n";
+    for (const auto& entry : crossSections) {
+        int region_id = entry.first;
+        const auto& xs_values = entry.second;
+        std::cout << "Region ID: " << region_id << "\n";
+        for (size_t g = 0; g < xs_values.size(); ++g) {
+            std::cout << "  Group " << g+1 << ": ";
+            for (size_t i = 0; i < xs_values[g].size(); ++i) {
+                std::cout << xs_values[g][i] << " ";
+            }
+            std::cout << "\n";
+        }
+    }
+
+    std::cout << "==== End of Debugging ====" << "\n";
+}
+

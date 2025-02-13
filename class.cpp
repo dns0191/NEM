@@ -5,6 +5,10 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+std::unordered_map<int, std::vector<std::vector<double>>> crossSections;
+std::vector<MultiGroupNode*> nodeGrid1D;
+std::vector<std::vector<MultiGroupNode*>> nodeGrid2D;
+std::vector<std::vector<std::vector<MultiGroupNode*>>> nodeGrid3D;
 
 constexpr auto LEFT_SIDE = false;
 constexpr auto RIGHT_SIDE = true;
@@ -184,24 +188,24 @@ double MultiGroupNode::getSurfaceNetCurrent(int direction, bool side, int number
 MultiGroupNode* MultiGroupNode::getNeighborNode(int direction, bool side) const {
 	// 1D 저장소일 경우
 	if (dim == 1) {
-		int neighbor_id = neighbor_node[side][0];  // 해당 방향의 neighbor ID
+		const int neighbor_id = neighbor_node[side][0];  // 해당 방향의 neighbor ID
 		if (neighbor_id >= 0 && neighbor_id < nodeGrid1D.size()) {
 			return nodeGrid1D[neighbor_id];
 		}
 	}
 	// 2D 저장소일 경우
 	else if (dim == 2) {
-		int x = id % nodeGrid2D.size();  // x 좌표
-		int y = id / nodeGrid2D.size();  // y 좌표
+		const int x = id % nodeGrid2D.size();  // x 좌표
+		const int y = static_cast<int>(id / nodeGrid2D.size());  // y 좌표
 
 		if (direction == 0) { // X 방향
-			int neighbor_x = (side == LEFT_SIDE) ? x - 1 : x + 1;
+			const int neighbor_x = (side == LEFT_SIDE) ? x - 1 : x + 1;
 			if (neighbor_x >= 0 && neighbor_x < nodeGrid2D.size()) {
 				return nodeGrid2D[neighbor_x][y];
 			}
 		}
 		else if (direction == 1) { // Y 방향
-			int neighbor_y = (side == LEFT_SIDE) ? y - 1 : y + 1;
+			const int neighbor_y = (side == LEFT_SIDE) ? y - 1 : y + 1;
 			if (neighbor_y >= 0 && neighbor_y < nodeGrid2D[0].size()) {
 				return nodeGrid2D[x][neighbor_y];
 			}
@@ -209,26 +213,26 @@ MultiGroupNode* MultiGroupNode::getNeighborNode(int direction, bool side) const 
 	}
 	// 3D 저장소일 경우
 	else if (dim == 3) {
-		int x_size = nodeGrid3D.size();
-		int y_size = nodeGrid3D[0].size();
-		int x = id % x_size;
-		int y = (id / x_size) % y_size;
-		int z = id / (x_size * y_size);
+		const int x_size = nodeGrid3D.size();
+		const int y_size = nodeGrid3D[0].size();
+		const int x = id % x_size;
+		const int y = (id / x_size) % y_size;
+		const int z = id / (x_size * y_size);
 
 		if (direction == 0) { // X 방향
-			int neighbor_x = (side == LEFT_SIDE) ? x - 1 : x + 1;
+			const int neighbor_x = (side == LEFT_SIDE) ? x - 1 : x + 1;
 			if (neighbor_x >= 0 && neighbor_x < x_size) {
 				return nodeGrid3D[neighbor_x][y][z];
 			}
 		}
 		else if (direction == 1) { // Y 방향
-			int neighbor_y = (side == LEFT_SIDE) ? y - 1 : y + 1;
+			const int neighbor_y = (side == LEFT_SIDE) ? y - 1 : y + 1;
 			if (neighbor_y >= 0 && neighbor_y < y_size) {
 				return nodeGrid3D[x][neighbor_y][z];
 			}
 		}
 		else if (direction == 2) { // Z 방향
-			int neighbor_z = (side == LEFT_SIDE) ? z - 1 : z + 1;
+			const int neighbor_z = (side == LEFT_SIDE) ? z - 1 : z + 1;
 			if (neighbor_z >= 0 && neighbor_z < nodeGrid3D[0][0].size()) {
 				return nodeGrid3D[x][y][neighbor_z];
 			}
@@ -288,12 +292,14 @@ void MultiGroupNode::GaussianElimination(double** M, double*& C, double* src, in
 	}
 }
 
-MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dimension)
+MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dimension, double* width)
 {
 	id = node_id;
 	region = node_region;
+	number_of_groups = group;
+	dim = dimension;
 	// 동적 메모리 할당 및 초기화
-	node_width = new double[dimension];
+	node_width = width;
 	flux_avg = new double[group];
 	old_flux = new double[group];
 	new_flux = new double[group];
@@ -382,21 +388,24 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 		std::memset(C4[i], 0, group * sizeof(double));
 	}
 
-	mgxs = new double* [4];
-	for (int i = 0; i < 4; ++i) {
-		mgxs[i] = new double[group];
-		std::memset(mgxs[i], 0, group * sizeof(double));
+	mgxs = new double* [group];
+	for (int i = 0; i < group; ++i) {
+		mgxs[i] = new double[4];
+		std::memset(mgxs[i], 0, 4 * sizeof(double));
 	}
 
-	if (crossSections.find(region) != crossSections.end())
-	{
-		for (int i=0; i<4; i++)
-		{
-			for (int g=0; g<group; g++)
-			{
-				mgxs[i][g] = crossSections[region][i][g];
+	if (crossSections.find(region) != crossSections.end()) {
+		auto& xs_data = crossSections[region];
+		for (int g = 0; g < group; g++) {
+			for (int i = 0; i < 4; i++) {
+				if (i >= xs_data.size()) break;  // 방어 코드 추가
+				if (g >= xs_data[i].size()) break;  // 방어 코드 추가
+				mgxs[g][i] = xs_data[i][g];
 			}
 		}
+	}
+	else {
+		std::cerr << "Warning: Region " << region << " not found in crossSections!" << "\n";
 	}
 
 	neighbor_node[0] = new int[dimension];
@@ -485,11 +494,58 @@ MultiGroupNode::~MultiGroupNode()
 	delete[] C3;
 	delete[] C4;
 
-	for (int i = 0; i < 4; ++i) {
-		delete[] mgxs[i];
+	if (mgxs) {
+		for (int i = 0; i < 4; ++i) {
+			if (mgxs[i]) delete[] mgxs[i];
+		}
+		delete[] mgxs;
 	}
-	delete[] mgxs;
+
 
 	delete[] neighbor_node[0];
 	delete[] neighbor_node[1];
+}
+
+void MultiGroupNode::getNodeInformation() const
+{
+	std::cout << "Node ID: " << id << "\n";
+	std::cout << "Region: " << region << "\n";
+	std::cout << "Number of Groups: " << number_of_groups << "\n";
+	std::cout << "Dimension: " << dim << "\n";
+
+	std::cout << "Node Width: ";
+	if (node_width) {
+		for (int i = 0; i < dim; ++i) {
+			std::cout << node_width[i] << " ";
+		}
+	}
+	else {
+		std::cout << "null";
+	}
+	std::cout << "\n";
+
+	std::cout << "Flux Average: ";
+	if (flux_avg) {
+		for (int i = 0; i < number_of_groups; ++i) {
+			std::cout << flux_avg[i] << " ";
+		}
+	}
+	else {
+		std::cout << "null";
+	}
+	std::cout << "\n";
+
+	if (mgxs) {
+		for (int g = 0; g < number_of_groups; ++g) {
+			std::cout << "Group " << g+1 << ": ";
+			for (int i = 0; i < 4; ++i) {
+				std::cout << mgxs[g][i] << " ";
+			}
+			std::cout << "\n";
+		}
+	}
+	else {
+		std::cout << "null";
+	}
+	std::cout << "\n";
 }
