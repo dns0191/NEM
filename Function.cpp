@@ -26,47 +26,29 @@ void initializeNodesFromInput(const std::string& filename) {
     int GROUP_NUM = 1;
     std::vector<int> BENCH;
     std::vector<double> nodeWidths;
-    bool readingXS = false;
-    bool readingNodeWidth = false;
-    bool readingBench = false;
-
     std::string line;
-    while (std::getline(file, line)) {
-        std::istringstream iss(line);
-        std::string key;
-        iss >> key;
+    std::string currentKey;
 
-        if (key == "DIM") {
+    while (std::getline(file, line)) {
+        if (line.empty()) {
+            currentKey.clear();
+            continue;
+        }
+
+        std::istringstream iss(line);
+        if (currentKey.empty()) {
+            iss >> currentKey;
+        }
+
+        if (currentKey == "DIM") {
             iss >> DIM;
         }
-        else if (key == "GROUP_NUM") {
+        else if (currentKey == "GROUP_NUM") {
             iss >> GROUP_NUM;
         }
-        else if (key == "NODE_WIDTH") {
-            readingNodeWidth = true;
-        }
-        else if (key == "BENCH") {
-            readingBench = true;
-        }
-        else if (key == "XS") {
-            readingXS = true;
-        }
-        else if (readingNodeWidth) {
-            double width;
-            while (iss >> width) {
-                nodeWidths.push_back(width);
-            }
-            readingNodeWidth = false; // 읽기 완료 후 false로 설정
-        }
-        else if (readingBench) {
-            int id;
-            while (iss >> id) {
-                BENCH.push_back(id);
-            }
-            readingBench = false; // 읽기 완료 후 false로 설정
-        }
-        else if (readingXS && !key.empty()) {
-            int region_id = std::stoi(key);
+        else if (currentKey == "XS") {
+            int region_id;
+            iss >> region_id;
             std::vector<std::vector<double>> xs_values(GROUP_NUM, std::vector<double>(4, 0.0));
             for (int i = 0; i < 4; ++i) {
                 for (int g = 0; g < GROUP_NUM; ++g) {
@@ -75,10 +57,23 @@ void initializeNodesFromInput(const std::string& filename) {
             }
             crossSections[region_id] = xs_values;
         }
+        else if (currentKey == "NODE_WIDTH") {
+            double width;
+            while (iss >> width) {
+                nodeWidths.push_back(width);
+            }
+        }
+        else if (currentKey == "BENCH") {
+            int id;
+            while (iss >> id) {
+                std::cout << id << "\n";
+                BENCH.push_back(id);
+            }
+        }
     }
     file.close();
 
-    // ✅ 차원별 노드 생성 (오버플로 방지 추가)
+    // 차원별 노드 생성 (오버플로 방지 추가)
     if (DIM == 1) {
         nodeGrid1D.resize(BENCH.size(), nullptr);
         for (size_t i = 0; i < BENCH.size(); ++i) {
@@ -136,6 +131,7 @@ void initializeNodesFromInput(const std::string& filename) {
         }
     }
 }
+
 
 
 
