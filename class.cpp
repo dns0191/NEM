@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <iomanip> 
 std::unordered_map<int, std::vector<std::vector<double>>> crossSections;
 std::vector<MultiGroupNode*> nodeGrid1D;
 std::vector<std::vector<MultiGroupNode*>> nodeGrid2D;
@@ -299,13 +300,21 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	number_of_groups = group;
 	dim = dimension;
 	// 동적 메모리 할당 및 초기화
-	node_width = width;
+	node_width = new double[dimension];
+	std::copy(width, width + dimension, node_width);
 	flux_avg = new double[group];
 	old_flux = new double[group];
 	new_flux = new double[group];
 	SRC = new double[group];
 	SRC1 = new double[group];
 	SRC2 = new double[group];
+
+	std::memset(flux_avg, 0, group * sizeof(double));
+	std::memset(old_flux, 0, group * sizeof(double));
+	std::memset(new_flux, 0, group * sizeof(double));
+	std::memset(SRC, 0, group * sizeof(double));
+	std::memset(SRC1, 0, group * sizeof(double));
+	std::memset(SRC2, 0, group * sizeof(double));
 
 	DL = new double** [dimension];
 	for (int i = 0; i < dimension; ++i) {
@@ -365,6 +374,7 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	D_c = new double[group];
 	MM = new double* [group];
 	for (int i = 0; i < group; ++i) {
+		D_c[i] = 0.0;
 		MM[i] = new double[group];
 		std::memset(MM[i], 0, group * sizeof(double));
 	}
@@ -396,11 +406,9 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 
 	if (crossSections.find(region) != crossSections.end()) {
 		auto& xs_data = crossSections[region];
-		for (int g = 0; g < group; g++) {
-			for (int i = 0; i < 4; i++) {
-				if (i >= xs_data.size()) break;  // 방어 코드 추가
-				if (g >= xs_data[i].size()) break;  // 방어 코드 추가
-				mgxs[g][i] = xs_data[i][g];
+		for (int i = 0; i < 4; i++) {
+			for (int g = 0; g < group; g++) {
+				mgxs[g][i] = xs_data[g][i];
 			}
 		}
 	}
@@ -418,6 +426,7 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	L_l = 0.0;
 	L_r = 0.0;
 }
+
 
 MultiGroupNode::~MultiGroupNode()
 {
@@ -506,6 +515,8 @@ MultiGroupNode::~MultiGroupNode()
 	delete[] neighbor_node[1];
 }
 
+
+
 void MultiGroupNode::getNodeInformation() const
 {
 	std::cout << "Node ID: " << id << "\n";
@@ -536,8 +547,9 @@ void MultiGroupNode::getNodeInformation() const
 	std::cout << "\n";
 
 	if (mgxs) {
+		std::cout << std::fixed << std::setprecision(3); // 소수점 셋째 자리까지 출력
 		for (int g = 0; g < number_of_groups; ++g) {
-			std::cout << "Group " << g+1 << ": ";
+			std::cout << "Group " << g + 1 << ": ";
 			for (int i = 0; i < 4; ++i) {
 				std::cout << mgxs[g][i] << " ";
 			}
