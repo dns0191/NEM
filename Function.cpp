@@ -1,5 +1,6 @@
 #include "Function.h"
 
+
 double* product_matrix(double** A, double* C, int ng)
 {
     double* result = new double[ng];
@@ -16,7 +17,7 @@ double* product_matrix(double** A, double* C, int ng)
 }
 
 
-void initializeNodesFromInput(const std::string& filename) {
+double initializeNodesFromInput(const std::string& filename) {
     std::ifstream file(filename);
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open input file.");
@@ -24,8 +25,10 @@ void initializeNodesFromInput(const std::string& filename) {
 
     int DIM = 1;
     int GROUP_NUM = 1;
+    double error = 0.0;
     std::vector<int> BENCH;
     std::vector<double> nodeWidths;
+    std::vector<double> avgFluxValues;
     std::string line;
     std::string currentKey;
 
@@ -83,12 +86,27 @@ void initializeNodesFromInput(const std::string& filename) {
                 x_size++;
             }
         }
+        else if (currentKey == "AVG_FLUX") {
+            double flux;
+            while (iss >> flux) {
+                avgFluxValues.push_back(flux);
+            }
+        }
+        else if (currentKey =="CONVERGENCE")
+        {
+            iss >> error;
+        }
     }
     file.close();
 
     // nodeWidths 벡터가 제대로 초기화되었는지 확인
     if (nodeWidths.empty()) {
         throw std::runtime_error("Error: NODE_WIDTH is missing or empty in input file.");
+    }
+
+    // avgFluxValues 벡터가 제대로 초기화되었는지 확인
+    if (avgFluxValues.size() != GROUP_NUM) {
+        throw std::runtime_error("Error: AVG_FLUX values are missing or do not match GROUP_NUM in input file.");
     }
 
     // 차원별 노드 생성 (오버플로 방지 추가)
@@ -101,6 +119,7 @@ void initializeNodesFromInput(const std::string& filename) {
             }
             else {
                 nodeGrid1D[i] = new MultiGroupNode(static_cast<int>(i), region, GROUP_NUM, 1, nodeWidths.data());
+                nodeGrid1D[i]->setFluxAvg(avgFluxValues); // flux_avg 설정
             }
         }
     }
@@ -122,6 +141,7 @@ void initializeNodesFromInput(const std::string& filename) {
                 }
                 else {
                     nodeGrid2D[x][y] = new MultiGroupNode(static_cast<int>(index), region, GROUP_NUM, 2, nodeWidths.data());
+                    nodeGrid2D[x][y]->setFluxAvg(avgFluxValues); // flux_avg 설정
                 }
             }
         }
@@ -129,7 +149,10 @@ void initializeNodesFromInput(const std::string& filename) {
     else if (DIM == 3) {
         std::cout << "Unimplemented" << "\n";
     }
+    return error;
 }
+
+
 
 
 
@@ -162,7 +185,7 @@ void debugPrintNodes() {
     if (!nodeGrid3D.empty()) {
         std::cout << "Unimplemented" << "\n";
     }
-
+    std::cout << "\n";
     std::cout << "==== Cross Sections Data ====" << "\n";
     for (const auto& entry : crossSections) {
         const int region_id = entry.first;
@@ -181,3 +204,14 @@ void debugPrintNodes() {
     std::cout << "==== End of Debugging ====" << "\n";
 }
 
+bool totalConvergence(double ERROR)
+{
+    for (const auto& row : nodeGrid2D) {
+        for (const auto& node : row) {
+            if (node != nullptr && !node->checkConvergence(ERROR)) {
+                return true; // 하나라도 false이면 true 반환
+            }
+        }
+    }
+    return false; // 모두 true이면 false 반환
+}

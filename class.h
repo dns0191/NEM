@@ -2,6 +2,7 @@
 #include <unordered_map>
 #include <vector>
 
+
 class MultiGroupNode;
 
 //  영역(region)별 그룹(group)별 단면적 저장 (unordered_map 사용)
@@ -21,7 +22,7 @@ private:
     /*
 	DL: Transverse Leakage
     */
-    double** A, ** M1, ** M2, *** M3, *** M4, * D_c, **MM;
+    double** A, *** M3, *** M4, * D_c, **MM;
     /*
 	A: Removal Cross_Section
     M1: AC1 + DL1
@@ -32,7 +33,7 @@ private:
     MM: Q0
     */
     double*** Q;
-    double** C0, ** C1, ** C2, ** C3, ** C4;
+    double*** C_m;
     double* SRC, * SRC1, * SRC2;
     //SRC: Node Average Flux -> s
     int* neighbor_node[2];
@@ -40,7 +41,7 @@ private:
 	double L_l, L_r;
     MultiGroupNode* l_node, * r_node;
 
-    void makeOneDimensionalFlux(double** C[5], double* source_avg, double* surf_source[3][2]);
+    void makeOneDimensionalFlux(double** C[5]);
     void updateAverageFlux(double** C[5], const double* source_avg);
     void updateOutgoingCurrent(double** C[5]);
     void updateTransverseLeakage(int direction, int group);
@@ -53,11 +54,17 @@ private:
     double getAverageTransverseLeakage(int direction, int group) const;
     MultiGroupNode* getNeighborNode(int direction, bool side) const;
     static void GaussianElimination(double** M, double*& C, double* src, int ng);
-    void add_product(double* src, double*& M, double* C, int ng);
+    void add_product(double* src, double* C, int ng);
 
 public:
     MultiGroupNode(int node_id, int node_region, int group, int dimension, double* width);
     ~MultiGroupNode();
     void getNodeInformation() const;
+    void runNEM();
+    void setFluxAvg(const std::vector<double>& avgFluxValues) const;
+    bool checkConvergence(double ERROR);
+    int getId() const { return id; }
+    int getNumberOfGroups() const { return number_of_groups; }
+    double getFluxAvg(int group) const { return flux_avg[group]; }
 };
 

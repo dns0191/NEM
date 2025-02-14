@@ -14,7 +14,7 @@ std::vector<std::vector<std::vector<MultiGroupNode*>>> nodeGrid3D;
 constexpr auto LEFT_SIDE = false;
 constexpr auto RIGHT_SIDE = true;
 
-void MultiGroupNode::makeOneDimensionalFlux(double** C[5], double* source_avg, double* surf_source[3][2])
+void MultiGroupNode::makeOneDimensionalFlux(double** C[5])
 {
 	const int ng = number_of_groups;
 	int g;
@@ -36,8 +36,8 @@ void MultiGroupNode::makeOneDimensionalFlux(double** C[5], double* source_avg, d
 			SRC1[g] = DL[u][1][g];
 			SRC2[g] = DL[u][2][g];
 		}
-		add_product(SRC1, M1[u], C[u][1], ng);
-		add_product(SRC2, M2[u], C[u][2], ng);
+		add_product(SRC1, C[u][1], ng);
+		add_product(SRC2, C[u][2], ng);
 		GaussianElimination(M3[u], C[u][3], SRC1, ng);
 		GaussianElimination(M4[u], C[u][4], SRC2, ng);
 	}
@@ -45,6 +45,7 @@ void MultiGroupNode::makeOneDimensionalFlux(double** C[5], double* source_avg, d
 
 void MultiGroupNode::updateAverageFlux(double** C[5], const double* source_avg)
 {
+	old_flux = flux_avg;
 	const int ng = number_of_groups;
 	int g;
 
@@ -124,12 +125,26 @@ void MultiGroupNode::updateTransverseLeakage(int direction, int group)
 
 double MultiGroupNode::getNodeWidth(int direction) const
 {
-	return node_width[direction];
+	if (this == nullptr)
+	{
+		return 0.0;
+	}
+	else
+	{
+		return node_width[direction];
+	}
 }
 
 double MultiGroupNode::getAverageTransverseLeakage(int direction, int group) const
 {
-	return DL[direction][0][group];
+	if(this == nullptr)
+	{
+		return 0.0;
+	}
+	else
+	{
+		return DL[direction][0][group];
+	}
 }
 
 double MultiGroupNode::getBeta(int direction, int number_of_group) const
@@ -139,18 +154,39 @@ double MultiGroupNode::getBeta(int direction, int number_of_group) const
 
 double MultiGroupNode::getDiffusionCoefficient(int number_of_group) const
 {
-	return D_c[number_of_group];
+	if(this == nullptr)
+	{
+		return 0.0;
+	}
+	else
+	{
+		return D_c[number_of_group];
+	}
 }
 
 double MultiGroupNode::getIncomingCurrent(int direction, bool side, int number_of_group) const
 {
 	if (side == RIGHT_SIDE)
 	{
-		return r_node->out_current[direction][0][number_of_group];
+		if (r_node == nullptr)
+		{
+			return 0.0;
+		}
+		else
+		{
+			return r_node->out_current[direction][0][number_of_group];
+		}
 	}
 	else
 	{
-		return l_node->out_current[direction][1][number_of_group];
+		if (l_node == nullptr)
+		{
+			return 0.0;
+		}
+		else
+		{
+			return l_node->out_current[direction][1][number_of_group];
+		}
 	}
 }
 
@@ -214,41 +250,17 @@ MultiGroupNode* MultiGroupNode::getNeighborNode(int direction, bool side) const 
 	}
 	// 3D 저장소일 경우
 	else if (dim == 3) {
-		const int x_size = nodeGrid3D.size();
-		const int y_size = nodeGrid3D[0].size();
-		const int x = id % x_size;
-		const int y = (id / x_size) % y_size;
-		const int z = id / (x_size * y_size);
-
-		if (direction == 0) { // X 방향
-			const int neighbor_x = (side == LEFT_SIDE) ? x - 1 : x + 1;
-			if (neighbor_x >= 0 && neighbor_x < x_size) {
-				return nodeGrid3D[neighbor_x][y][z];
-			}
-		}
-		else if (direction == 1) { // Y 방향
-			const int neighbor_y = (side == LEFT_SIDE) ? y - 1 : y + 1;
-			if (neighbor_y >= 0 && neighbor_y < y_size) {
-				return nodeGrid3D[x][neighbor_y][z];
-			}
-		}
-		else if (direction == 2) { // Z 방향
-			const int neighbor_z = (side == LEFT_SIDE) ? z - 1 : z + 1;
-			if (neighbor_z >= 0 && neighbor_z < nodeGrid3D[0][0].size()) {
-				return nodeGrid3D[x][y][neighbor_z];
-			}
-		}
+		std::cout << "Unimplemented" << "\n";
 	}
 
 	return nullptr;  // 이웃이 없으면 nullptr 반환
 }
 
-void MultiGroupNode::add_product(double* src, double*& M, double* C, int ng)
+void MultiGroupNode::add_product(double* src, double* C, int ng)
 {
-	M = product_matrix(this->A, C, ng);
 	for (int i=0; i<ng; i++)
 	{
-		src[i] += M[i];
+		src[i] += product_matrix(this->A, C, ng)[i];
 	}
 }
 
@@ -268,10 +280,6 @@ void MultiGroupNode::GaussianElimination(double** M, double*& C, double* src, in
 			std::swap(src[i], src[max_row]);
 		}
 
-		// 피벗이 0이면 해가 없거나 무수히 많음
-		if (M[i][i] == 0.0) {
-			throw std::runtime_error("Singular matrix: No unique solution exists.");
-		}
 
 		// 소거 작업
 		for (int j = i + 1; j < ng; j++) {
@@ -292,6 +300,11 @@ void MultiGroupNode::GaussianElimination(double** M, double*& C, double* src, in
 		C[i] /= M[i][i];
 	}
 }
+
+void MultiGroupNode::setFluxAvg(const std::vector<double>& avgFluxValues) const {
+	std::copy(avgFluxValues.begin(), avgFluxValues.end(), flux_avg);
+}
+
 
 MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dimension, double* width)
 {
@@ -316,6 +329,24 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	std::memset(SRC1, 0, group * sizeof(double));
 	std::memset(SRC2, 0, group * sizeof(double));
 
+	mgxs = new double* [group];
+	for (int i = 0; i < group; ++i) {
+		mgxs[i] = new double[4];
+		std::memset(mgxs[i], 0, 4 * sizeof(double));
+	}
+
+	if (crossSections.find(region) != crossSections.end()) {
+		const auto& xs_data = crossSections[region];
+		for (int i = 0; i < 4; i++) {
+			for (int g = 0; g < group; g++) {
+				mgxs[g][i] = xs_data[g][i];
+			}
+		}
+	}
+	else {
+		std::cerr << "Warning: Region " << region << " not found in crossSections!" << "\n";
+	}
+
 	DL = new double** [dimension];
 	for (int i = 0; i < dimension; ++i) {
 		DL[i] = new double* [3];
@@ -329,7 +360,20 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	for (int i = 0; i < group; ++i) {
 		A[i] = new double[group];
 		std::memset(A[i], 0, group * sizeof(double));
+		A[i][i] = mgxs[i][1];
 	}
+	for (int i=0; i<group; i++)
+	{
+		for (int j=0; j<group; j++)
+		{
+			A[i][j] += (-1) * mgxs[i][3];
+			if (i != j)
+			{
+				A[i][j] += (-1) * mgxs[i][2];
+			}
+		}
+	}
+
 
 	Q = new double** [dimension];
 	for (int i = 0; i < dimension; ++i) {
@@ -349,20 +393,12 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 		}
 	}
 
-	M1 = new double* [dimension];
-	M2 = new double* [dimension];
 	M3 = new double** [dimension];
 	M4 = new double** [dimension];
 
 	for (int i = 0; i < dimension; ++i) {
-		M1[i] = new double[group];
-		M2[i] = new double[group];
 		M3[i] = new double* [group];
 		M4[i] = new double* [group];
-
-		std::memset(M1[i], 0, group * sizeof(double));
-		std::memset(M2[i], 0, group * sizeof(double));
-
 		for (int j = 0; j < group; ++j) {
 			M3[i][j] = new double[group];
 			M4[i][j] = new double[group];
@@ -370,50 +406,21 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 			std::memset(M4[i][j], 0, group * sizeof(double));
 		}
 	}
-
 	D_c = new double[group];
 	MM = new double* [group];
 	for (int i = 0; i < group; ++i) {
-		D_c[i] = 0.0;
+		D_c[i] = mgxs[i][0];
 		MM[i] = new double[group];
 		std::memset(MM[i], 0, group * sizeof(double));
 	}
 
-	C0 = new double* [group];
-	C1 = new double* [group];
-	C2 = new double* [group];
-	C3 = new double* [group];
-	C4 = new double* [group];
-
-	for (int i = 0; i < group; ++i) {
-		C0[i] = new double[group];
-		C1[i] = new double[group];
-		C2[i] = new double[group];
-		C3[i] = new double[group];
-		C4[i] = new double[group];
-		std::memset(C0[i], 0, group * sizeof(double));
-		std::memset(C1[i], 0, group * sizeof(double));
-		std::memset(C2[i], 0, group * sizeof(double));
-		std::memset(C3[i], 0, group * sizeof(double));
-		std::memset(C4[i], 0, group * sizeof(double));
-	}
-
-	mgxs = new double* [group];
-	for (int i = 0; i < group; ++i) {
-		mgxs[i] = new double[4];
-		std::memset(mgxs[i], 0, 4 * sizeof(double));
-	}
-
-	if (crossSections.find(region) != crossSections.end()) {
-		auto& xs_data = crossSections[region];
-		for (int i = 0; i < 4; i++) {
-			for (int g = 0; g < group; g++) {
-				mgxs[g][i] = xs_data[g][i];
-			}
+	C_m = new double** [dimension];
+	for (int i = 0; i < dimension; ++i) {
+		C_m[i] = new double* [5];
+		for (int j = 0; j < 5; ++j) {
+			C_m[i][j] = new double [group];
+			std::memset(C_m[i][j], 0, group * sizeof(double));
 		}
-	}
-	else {
-		std::cerr << "Warning: Region " << region << " not found in crossSections!" << "\n";
 	}
 
 	neighbor_node[0] = new int[dimension];
@@ -426,7 +433,6 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	L_l = 0.0;
 	L_r = 0.0;
 }
-
 
 MultiGroupNode::~MultiGroupNode()
 {
@@ -457,14 +463,10 @@ MultiGroupNode::~MultiGroupNode()
 			delete[] M3[i][j];
 			delete[] M4[i][j];
 		}
-		delete[] M1[i];
-		delete[] M2[i];
 		delete[] M3[i];
 		delete[] M4[i];
 	}
 
-	delete[] M1;
-	delete[] M2;
 	delete[] M3;
 	delete[] M4;
 
@@ -490,18 +492,14 @@ MultiGroupNode::~MultiGroupNode()
 	delete[] D_c;
 	delete[] MM;
 
-	for (int i = 0; i < number_of_groups; ++i) {
-		delete[] C0[i];
-		delete[] C1[i];
-		delete[] C2[i];
-		delete[] C3[i];
-		delete[] C4[i];
+	for (int i = 0; i < dim; ++i) { // C0, C1, C2, C3, C4 대신 C_m 사용
+		for (int j = 0; j < 5; ++j) {
+				delete[] C_m[i][j];
+			delete[] C_m[i][j];
+		}
+		delete[] C_m[i];
 	}
-	delete[] C0;
-	delete[] C1;
-	delete[] C2;
-	delete[] C3;
-	delete[] C4;
+	delete[] C_m;
 
 	if (mgxs) {
 		for (int i = 0; i < 4; ++i) {
@@ -560,4 +558,55 @@ void MultiGroupNode::getNodeInformation() const
 		std::cout << "null";
 	}
 	std::cout << "\n";
+
+	std::cout << "C_m values:\n";
+	for (int j = 0; j < 5; ++j) {
+		std::cout << "C_m[" << j << "]: ";
+		for (int u = 0; u < dim; ++u) {
+			for (int g = 0; g < number_of_groups; ++g) {
+				std::cout << C_m[u][j][g] << " ";
+			}
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+	std::cout << "A values:\n";
+	for (int i = 0; i < number_of_groups; ++i) {
+		for (int j = 0; j < number_of_groups; ++j) {
+			std::cout << A[i][j]<< " ";
+		}
+		std::cout << "\n";
+	}
+	std::cout << "\n";
+
+	std::cout << "D values:\n";
+	for (int i=0; i<number_of_groups; i++)
+	{
+		std::cout << D_c[i] << " ";
+	}
+	std::cout << "\n\n";
+}
+
+void MultiGroupNode::runNEM()
+{
+	for (int u=0; u<dim; u++)
+	{
+		for (int g=0; g<number_of_groups; g++)
+		{
+			updateTransverseLeakage(u, g);
+			makeOneDimensionalFlux(C_m);
+			updateAverageFlux(C_m, flux_avg);
+			updateOutgoingCurrent(C_m);
+		}
+	}
+}
+
+bool MultiGroupNode::checkConvergence(double ERROR)
+{
+	if (abs(new_flux - old_flux) <= ERROR) {
+		return 1;
+	}
+	else
+		return 0;
 }

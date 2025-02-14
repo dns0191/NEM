@@ -9,5 +9,6 @@
 
 
 double* product_matrix(double** A, double* C, int ng);
-void initializeNodesFromInput(const std::string& filename);
+double initializeNodesFromInput(const std::string& filename);
 void debugPrintNodes();
+bool totalConvergence(double ERROR);
