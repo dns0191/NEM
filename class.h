@@ -54,7 +54,7 @@ private:
     double getAverageTransverseLeakage(int direction, int group) const;
     MultiGroupNode* getNeighborNode(int direction, bool side) const;
     static void GaussianElimination(double** M, double*& C, double* src, int ng);
-    void add_product(double* src, double* C, int ng);
+    double* add_product(double* src, double* C, int ng) const;
 
 public:
     MultiGroupNode(int node_id, int node_region, int group, int dimension, double* width);
@@ -62,7 +62,7 @@ public:
     void getNodeInformation() const;
     void runNEM();
     void setFluxAvg(const std::vector<double>& avgFluxValues) const;
-    bool checkConvergence(double ERROR);
+	bool checkConvergence(double ERROR);
     int getId() const { return id; }
     int getNumberOfGroups() const { return number_of_groups; }
     double getFluxAvg(int group) const { return flux_avg[group]; }

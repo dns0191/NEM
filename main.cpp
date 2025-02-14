@@ -20,7 +20,7 @@ int main() {
         }
         outputFile << "\n";
 
-        while (totalConvergence(error)) {
+        do {
             outputFile << std::setw(5) << step;
             for (const auto& row : nodeGrid2D) {
                 for (const auto& node : row) {
@@ -34,7 +34,7 @@ int main() {
             }
             outputFile << "\n";
             step += 1;
-        }
+        } while (totalConvergence(error));
         outputFile.close();
     }
     return 0;

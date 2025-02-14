@@ -3,6 +3,7 @@
 #include <queue>
 #include <stdexcept>
 #include <fstream>
+#include <inttypes.h>
 #include <sstream>
 #include <vector>
 #include <iomanip> 
@@ -36,8 +37,8 @@ void MultiGroupNode::makeOneDimensionalFlux(double** C[5])
 			SRC1[g] = DL[u][1][g];
 			SRC2[g] = DL[u][2][g];
 		}
-		add_product(SRC1, C[u][1], ng);
-		add_product(SRC2, C[u][2], ng);
+		SRC1 = add_product(SRC1, C[u][1], ng);
+		SRC2 = add_product(SRC2, C[u][2], ng);
 		GaussianElimination(M3[u], C[u][3], SRC1, ng);
 		GaussianElimination(M4[u], C[u][4], SRC2, ng);
 	}
@@ -256,12 +257,13 @@ MultiGroupNode* MultiGroupNode::getNeighborNode(int direction, bool side) const 
 	return nullptr;  // 이웃이 없으면 nullptr 반환
 }
 
-void MultiGroupNode::add_product(double* src, double* C, int ng)
+double* MultiGroupNode::add_product(double* src, double* C, int ng) const 
 {
 	for (int i=0; i<ng; i++)
 	{
 		src[i] += product_matrix(this->A, C, ng)[i];
 	}
+	return src;
 }
 
 void MultiGroupNode::GaussianElimination(double** M, double*& C, double* src, int ng)
@@ -406,6 +408,7 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 			std::memset(M4[i][j], 0, group * sizeof(double));
 		}
 	}
+
 	D_c = new double[group];
 	MM = new double* [group];
 	for (int i = 0; i < group; ++i) {
@@ -413,6 +416,24 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 		MM[i] = new double[group];
 		std::memset(MM[i], 0, group * sizeof(double));
 	}
+
+	for (int u = 0; u<dim; u++)
+	{
+		for (int i=0;i<group;i++)
+		{
+			for (int j=0; j<group; j++)
+			{
+				M3[u][i][j] += 1/10 * A[i][j];
+				M4[u][i][j] += 1/14 * A[i][j];
+				if(i==j)
+				{
+					M3[u][i][j] += 6 / width[u] * D_c[j];
+					M4[u][i][j] += 10 / width[u] * D_c[j];
+				}
+			}
+		}
+	}
+	
 
 	C_m = new double** [dimension];
 	for (int i = 0; i < dimension; ++i) {
@@ -586,6 +607,32 @@ void MultiGroupNode::getNodeInformation() const
 		std::cout << D_c[i] << " ";
 	}
 	std::cout << "\n\n";
+
+	std::cout << "M3, M4:\n";
+	for(int i = 0; i<dim; i++)
+	{
+		for(int j=0; j<number_of_groups; j++)
+		{
+			for(int k=0; k<number_of_groups; k++)
+			{
+				std::cout << M3[i][j][k]<<" ";
+				std::cout << M4[i][j][k]<<" ";
+				std::cout << "\n";
+			}
+			std::cout << "\n";
+		}
+	}
+
+	// 각 방향별로 이웃한 노드의 ID 출력
+	std::cout << "Neighbor Node IDs:\n";
+	for (int direction = 0; direction < dim; ++direction) {
+		MultiGroupNode* leftNeighbor = getNeighborNode(direction, LEFT_SIDE);
+		MultiGroupNode* rightNeighbor = getNeighborNode(direction, RIGHT_SIDE);
+		std::cout << "Direction " << direction << ":\n";
+		std::cout << "  Left Neighbor ID: " << (leftNeighbor ? leftNeighbor->id : -1) << "\n";
+		std::cout << "  Right Neighbor ID: " << (rightNeighbor ? rightNeighbor->id : -1) << "\n";
+	}
+	std::cout << "\n\n";
 }
 
 void MultiGroupNode::runNEM()
@@ -595,18 +642,19 @@ void MultiGroupNode::runNEM()
 		for (int g=0; g<number_of_groups; g++)
 		{
 			updateTransverseLeakage(u, g);
-			makeOneDimensionalFlux(C_m);
-			updateAverageFlux(C_m, flux_avg);
-			updateOutgoingCurrent(C_m);
 		}
 	}
+	makeOneDimensionalFlux(C_m);
+	updateAverageFlux(C_m, flux_avg);
+	updateOutgoingCurrent(C_m);
 }
 
 bool MultiGroupNode::checkConvergence(double ERROR)
 {
-	if (abs(new_flux - old_flux) <= ERROR) {
-		return 1;
+	for (int g = 0; g < number_of_groups; ++g) {
+		if (std::abs(new_flux[g] - old_flux[g]) > ERROR) {
+			return false;
+		}
 	}
-	else
-		return 0;
+	return true;
 }
