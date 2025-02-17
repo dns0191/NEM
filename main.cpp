@@ -33,6 +33,7 @@ int main() {
                         for (int g = 0; g < node->getNumberOfGroups(); ++g) {
                             outputFile << std::setw(20) << std::scientific << node->getFlux(g);
                         }
+                        //node->getNodeInformation();
                     }
                 }
             }
