@@ -6,8 +6,6 @@
 #include <unordered_map>
 #include "class.h"
 
-
-
 double* product_matrix(double** A, double* C, int ng);
 double initializeNodesFromInput(const std::string& filename);
 void debugPrintNodes();

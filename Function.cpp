@@ -1,10 +1,13 @@
 #include "Function.h"
-
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <stdexcept>
+#include <vector>
 
 double* product_matrix(double** A, double* C, int ng)
 {
     double* result = new double[ng];
-
     for (int i = 0; i < ng; i++)
     {
         result[i] = 0.0;
@@ -15,7 +18,6 @@ double* product_matrix(double** A, double* C, int ng)
     }
     return result;
 }
-
 
 double initializeNodesFromInput(const std::string& filename) {
     std::ifstream file(filename);
@@ -92,24 +94,20 @@ double initializeNodesFromInput(const std::string& filename) {
                 avgFluxValues.push_back(flux);
             }
         }
-        else if (currentKey =="CONVERGENCE")
+        else if (currentKey == "CONVERGENCE")
         {
             iss >> error;
         }
     }
     file.close();
 
-    // nodeWidths 벡터가 제대로 초기화되었는지 확인
     if (nodeWidths.empty()) {
         throw std::runtime_error("Error: NODE_WIDTH is missing or empty in input file.");
     }
-
-    // avgFluxValues 벡터가 제대로 초기화되었는지 확인
     if (avgFluxValues.size() != GROUP_NUM) {
         throw std::runtime_error("Error: AVG_FLUX values are missing or do not match GROUP_NUM in input file.");
     }
 
-    // 차원별 노드 생성 (오버플로 방지 추가)
     if (DIM == 1) {
         nodeGrid1D.resize(BENCH.size(), nullptr);
         for (size_t i = 0; i < BENCH.size(); ++i) {
@@ -119,7 +117,7 @@ double initializeNodesFromInput(const std::string& filename) {
             }
             else {
                 nodeGrid1D[i] = new MultiGroupNode(static_cast<int>(i), region, GROUP_NUM, 1, nodeWidths.data());
-                nodeGrid1D[i]->setFluxAvg(avgFluxValues); // flux_avg 설정
+                nodeGrid1D[i]->setFluxAvg(avgFluxValues);
             }
         }
     }
@@ -131,7 +129,6 @@ double initializeNodesFromInput(const std::string& filename) {
             throw std::runtime_error("Error: BENCH size does not match X_SIZE * Y_SIZE. Check input file.");
         }
         nodeGrid2D.resize(x_size, std::vector<MultiGroupNode*>(y_size, nullptr));
-
         for (size_t x = 0; x < x_size; ++x) {
             for (size_t y = 0; y < y_size; ++y) {
                 size_t index = x * y_size + y;
@@ -141,7 +138,7 @@ double initializeNodesFromInput(const std::string& filename) {
                 }
                 else {
                     nodeGrid2D[x][y] = new MultiGroupNode(static_cast<int>(index), region, GROUP_NUM, 2, nodeWidths.data());
-                    nodeGrid2D[x][y]->setFluxAvg(avgFluxValues); // flux_avg 설정
+                    nodeGrid2D[x][y]->setFluxAvg(avgFluxValues);
                 }
             }
         }
@@ -152,17 +149,8 @@ double initializeNodesFromInput(const std::string& filename) {
     return error;
 }
 
-
-
-
-
-
-
-
-// ✅ 초기화된 노드 데이터 확인
 void debugPrintNodes() {
     std::cout << "==== Node Data Debugging ====" << "\n";
-
     if (!nodeGrid1D.empty()) {
         std::cout << " 1D Node Grid Detected (" << nodeGrid1D.size() << " nodes)\n";
         for (const auto& node : nodeGrid1D) {
@@ -170,7 +158,6 @@ void debugPrintNodes() {
             node->getNodeInformation();
         }
     }
-
     if (!nodeGrid2D.empty()) {
         std::cout << " 2D Node Grid Detected (" << nodeGrid2D.size() << " x " << nodeGrid2D[0].size() << ")\n";
         for (size_t x = 0; x < nodeGrid2D.size(); ++x) {
@@ -181,7 +168,6 @@ void debugPrintNodes() {
             }
         }
     }
-
     if (!nodeGrid3D.empty()) {
         std::cout << "Unimplemented" << "\n";
     }
@@ -193,14 +179,13 @@ void debugPrintNodes() {
         const auto& xs_values = entry.second;
         std::cout << "Region ID: " << region_id << "\n";
         for (size_t g = 0; g < xs_values.size(); ++g) {
-            std::cout << "  Group " << g+1 << ": ";
+            std::cout << "  Group " << g + 1 << ": ";
             for (size_t i = 0; i < xs_values[g].size(); ++i) {
                 std::cout << xs_values[g][i] << " ";
             }
             std::cout << "\n";
         }
     }
-
     std::cout << "==== End of Debugging ====" << "\n";
 }
 
@@ -209,9 +194,9 @@ bool totalConvergence(double ERROR)
     for (const auto& row : nodeGrid2D) {
         for (const auto& node : row) {
             if (node != nullptr && !node->checkConvergence(ERROR)) {
-                return true; // 하나라도 false이면 true 반환
+                return false;
             }
         }
     }
-    return false; // 모두 true이면 false 반환
+    return true;
 }

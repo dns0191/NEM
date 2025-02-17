@@ -3,40 +3,43 @@
 #include <iomanip>
 #include "class.h"
 #include "Function.h"
+#include <stdlib.h>
+#include <crtdbg.h>
+#define _CRTDBG_MAP_ALLOC
 
 int main() {
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     const double error = initializeNodesFromInput("input.inp");
     int step = 0;
     debugPrintNodes();
     std::ofstream outputFile("output.out");
     if (outputFile.is_open()) {
-        outputFile<< "     ";
+        outputFile << "     ";
         for (const auto& row : nodeGrid2D) {
             for (const auto& node : row) {
                 if (node != nullptr) {
-                    outputFile << std::setw(15) <<" "<<std::setw(3)<< node->getId() << std::setw(12)<< " ";
+                    outputFile << std::setw(15) << " " << std::setw(3) << node->getId() << std::setw(12) << " ";
                 }
             }
         }
         outputFile << "\n";
 
-        do {
+        while (!totalConvergence(error)) {
             outputFile << std::setw(5) << step;
             for (const auto& row : nodeGrid2D) {
                 for (const auto& node : row) {
                     if (node != nullptr) {
                         node->runNEM();
                         for (int g = 0; g < node->getNumberOfGroups(); ++g) {
-                            outputFile << std::setw(15) << std::scientific << node->getFlux(g);
+                            outputFile << std::setw(20) << std::scientific << node->getFlux(g);
                         }
                     }
                 }
             }
             outputFile << "\n";
             step += 1;
-        } while (totalConvergence(error));//(true);
+        }
         outputFile.close();
     }
     return 0;
 }
-
