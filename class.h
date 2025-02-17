@@ -62,9 +62,9 @@ public:
     void getNodeInformation() const;
     void runNEM();
     void setFluxAvg(const std::vector<double>& avgFluxValues) const;
-	bool checkConvergence(double ERROR);
+	bool checkConvergence(double ERROR) const;
     int getId() const { return id; }
     int getNumberOfGroups() const { return number_of_groups; }
-    double getFluxAvg(int group) const { return flux_avg[group]; }
+    double getFlux(int group) const { return flux_avg[group]; }
 };
 

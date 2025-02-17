@@ -3,7 +3,7 @@
 #include <queue>
 #include <stdexcept>
 #include <fstream>
-#include <inttypes.h>
+#include <cinttypes>
 #include <sstream>
 #include <vector>
 #include <iomanip> 
@@ -46,7 +46,7 @@ void MultiGroupNode::makeOneDimensionalFlux(double** C[5])
 
 void MultiGroupNode::updateAverageFlux(double** C[5], const double* source_avg)
 {
-	old_flux = flux_avg;
+	flux_avg = new_flux;
 	const int ng = number_of_groups;
 	int g;
 
@@ -104,21 +104,33 @@ void MultiGroupNode::updateTransverseLeakage(int direction, int group)
 		DL[direction][0][group] += (getSurfaceNetCurrent(v, RIGHT_SIDE, group) - getSurfaceNetCurrent(v, LEFT_SIDE, group)) / getNodeWidth(v);
 	}
 
-	l_node = getNeighborNode(direction, LEFT_SIDE);
-	r_node = getNeighborNode(direction, RIGHT_SIDE);
-
 	const double h_c = getNodeWidth(direction);
 	const double beta_c = getBeta(direction, group);
 	const double d_c = getDiffusionCoefficient(group);
 	const double DL0_c = DL[direction][0][group];
-	const double h_l = l_node->getNodeWidth(direction);
-	const double h_r = r_node->getNodeWidth(direction);
-	const double beta_l = l_node->getBeta(direction, group);
-	const double beta_r = r_node->getBeta(direction, group);
-	const double DL0_l = l_node->getAverageTransverseLeakage(direction, group);
-	const double DL0_r = r_node->getAverageTransverseLeakage(direction, group);
-	L_l = (DL0_l / h_l + DL0_c / h_c) / (beta_l + beta_c);
-	L_r = (DL0_c / h_c + DL0_r / h_r) / (beta_c + beta_r);
+
+	l_node = getNeighborNode(direction, LEFT_SIDE);
+	r_node = getNeighborNode(direction, RIGHT_SIDE);
+
+	if (l_node != nullptr)
+	{
+		const double h_l = l_node->getNodeWidth(direction);
+		const double beta_l = l_node->getBeta(direction, group);
+		const double DL0_l = l_node->getAverageTransverseLeakage(direction, group);
+		L_l = (DL0_l / h_l + DL0_c / h_c) / (beta_l + beta_c);
+	}
+	else
+		L_l = 0.0;
+
+	if(r_node != nullptr)
+	{
+		const double h_r = r_node->getNodeWidth(direction);
+		const double beta_r = r_node->getBeta(direction, group);
+		const double DL0_r = r_node->getAverageTransverseLeakage(direction, group);
+		L_r = (DL0_c / h_c + DL0_r / h_r) / (beta_c + beta_r);
+	}
+	else
+		L_r = 0.0;
 
 	DL[direction][1][group] = d_c * (L_r - L_l) / 2.0;
 	DL[direction][2][group] = d_c * (L_r + L_l - 2.0 * DL0_c / d_c) / 2.0;
@@ -126,26 +138,12 @@ void MultiGroupNode::updateTransverseLeakage(int direction, int group)
 
 double MultiGroupNode::getNodeWidth(int direction) const
 {
-	if (this == nullptr)
-	{
-		return 0.0;
-	}
-	else
-	{
-		return node_width[direction];
-	}
+	return node_width[direction];
 }
 
 double MultiGroupNode::getAverageTransverseLeakage(int direction, int group) const
 {
-	if(this == nullptr)
-	{
-		return 0.0;
-	}
-	else
-	{
-		return DL[direction][0][group];
-	}
+	return DL[direction][0][group];
 }
 
 double MultiGroupNode::getBeta(int direction, int number_of_group) const
@@ -155,14 +153,7 @@ double MultiGroupNode::getBeta(int direction, int number_of_group) const
 
 double MultiGroupNode::getDiffusionCoefficient(int number_of_group) const
 {
-	if(this == nullptr)
-	{
-		return 0.0;
-	}
-	else
-	{
-		return D_c[number_of_group];
-	}
+	return D_c[number_of_group];
 }
 
 double MultiGroupNode::getIncomingCurrent(int direction, bool side, int number_of_group) const
@@ -171,7 +162,7 @@ double MultiGroupNode::getIncomingCurrent(int direction, bool side, int number_o
 	{
 		if (r_node == nullptr)
 		{
-			return 0.0;
+			return out_current[direction][1][number_of_group];
 		}
 		else
 		{
@@ -182,7 +173,7 @@ double MultiGroupNode::getIncomingCurrent(int direction, bool side, int number_o
 	{
 		if (l_node == nullptr)
 		{
-			return 0.0;
+			return out_current[direction][0][number_of_group];
 		}
 		else
 		{
@@ -318,14 +309,12 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	node_width = new double[dimension];
 	std::copy(width, width + dimension, node_width);
 	flux_avg = new double[group];
-	old_flux = new double[group];
 	new_flux = new double[group];
 	SRC = new double[group];
 	SRC1 = new double[group];
 	SRC2 = new double[group];
 
 	std::memset(flux_avg, 0, group * sizeof(double));
-	std::memset(old_flux, 0, group * sizeof(double));
 	std::memset(new_flux, 0, group * sizeof(double));
 	std::memset(SRC, 0, group * sizeof(double));
 	std::memset(SRC1, 0, group * sizeof(double));
@@ -376,16 +365,6 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 		}
 	}
 
-
-	Q = new double** [dimension];
-	for (int i = 0; i < dimension; ++i) {
-		Q[i] = new double* [4];
-		for (int j = 0; j < 4; ++j) {
-			Q[i][j] = new double[group];
-			std::memset(Q[i][j], 0, group * sizeof(double));
-		}
-	}
-
 	out_current = new double** [dimension];
 	for (int i = 0; i < dimension; ++i) {
 		out_current[i] = new double* [2];
@@ -423,8 +402,8 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 		{
 			for (int j=0; j<group; j++)
 			{
-				M3[u][i][j] += 1/10 * A[i][j];
-				M4[u][i][j] += 1/14 * A[i][j];
+				M3[u][i][j] += static_cast<double>(1) / 10 * A[i][j];
+				M4[u][i][j] += static_cast<double>(1) / 14 * A[i][j];
 				if(i==j)
 				{
 					M3[u][i][j] += 6 / width[u] * D_c[j];
@@ -433,7 +412,6 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 			}
 		}
 	}
-	
 
 	C_m = new double** [dimension];
 	for (int i = 0; i < dimension; ++i) {
@@ -441,6 +419,27 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 		for (int j = 0; j < 5; ++j) {
 			C_m[i][j] = new double [group];
 			std::memset(C_m[i][j], 0, group * sizeof(double));
+		}
+	}
+
+	Q = new double** [dimension];
+	for (int i = 0; i < dimension; ++i) {
+		Q[i] = new double* [4];
+		for (int j = 0; j < 4; ++j) {
+			Q[i][j] = new double[group];
+			std::memset(Q[i][j], 0, group * sizeof(double));
+		}
+	}
+
+	for (int i=0; i<dimension; i++)
+	{
+		for (int j=0; j<group; ++j)
+		{
+			double BETA = getBeta(i, j);
+			Q[i][0][j] = BETA / (1 + 12 * BETA);
+			Q[i][1][j] = BETA / (1 + 4 * BETA);
+			Q[i][2][j] = 8 * BETA / ((1 + 4 * BETA) * (1+12*BETA));
+			Q[i][3][j] = (1-48 * BETA*BETA) / ((1 + 4 * BETA) * (1 + 12 * BETA));
 		}
 	}
 
@@ -460,7 +459,6 @@ MultiGroupNode::~MultiGroupNode()
 	// 동적 메모리 해제
 	delete[] node_width;
 	delete[] flux_avg;
-	delete[] old_flux;
 	delete[] new_flux;
 	delete[] SRC;
 	delete[] SRC1;
@@ -626,8 +624,8 @@ void MultiGroupNode::getNodeInformation() const
 	// 각 방향별로 이웃한 노드의 ID 출력
 	std::cout << "Neighbor Node IDs:\n";
 	for (int direction = 0; direction < dim; ++direction) {
-		MultiGroupNode* leftNeighbor = getNeighborNode(direction, LEFT_SIDE);
-		MultiGroupNode* rightNeighbor = getNeighborNode(direction, RIGHT_SIDE);
+		const MultiGroupNode* leftNeighbor = getNeighborNode(direction, LEFT_SIDE);
+		const MultiGroupNode* rightNeighbor = getNeighborNode(direction, RIGHT_SIDE);
 		std::cout << "Direction " << direction << ":\n";
 		std::cout << "  Left Neighbor ID: " << (leftNeighbor ? leftNeighbor->id : -1) << "\n";
 		std::cout << "  Right Neighbor ID: " << (rightNeighbor ? rightNeighbor->id : -1) << "\n";
@@ -649,12 +647,14 @@ void MultiGroupNode::runNEM()
 	updateOutgoingCurrent(C_m);
 }
 
-bool MultiGroupNode::checkConvergence(double ERROR)
+bool MultiGroupNode::checkConvergence(double ERROR) const 
 {
 	for (int g = 0; g < number_of_groups; ++g) {
-		if (std::abs(new_flux[g] - old_flux[g]) > ERROR) {
+		if (std::abs(flux_avg[g] - new_flux[g]) > ERROR) {
+			std::cout << ERROR<<"\n";
 			return false;
 		}
 	}
+	std::cout << ERROR << "\n";
 	return true;
 }

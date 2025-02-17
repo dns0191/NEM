@@ -27,14 +27,14 @@ int main() {
                     if (node != nullptr) {
                         node->runNEM();
                         for (int g = 0; g < node->getNumberOfGroups(); ++g) {
-                            outputFile << std::setw(15) << std::scientific << node->getFluxAvg(g);
+                            outputFile << std::setw(15) << std::scientific << node->getFlux(g);
                         }
                     }
                 }
             }
             outputFile << "\n";
             step += 1;
-        } while (totalConvergence(error));
+        } while (totalConvergence(error));//(true);
         outputFile.close();
     }
     return 0;
