@@ -38,9 +38,9 @@ private:
     double L_l, L_r;
     MultiGroupNode* l_node, * r_node;
 
-    void makeOneDimensionalFlux(double** C[5]);
-    void updateAverageFlux(double** C[5], const double* source_avg);
-    void updateOutgoingCurrent(double** C[5]) const;
+    void makeOneDimensionalFlux(double*** C);
+    void updateAverageFlux(double*** C);
+    void updateOutgoingCurrent(double*** C) const;
     void updateTransverseLeakage(int direction, int group);
     double getNodeWidth(int direction) const;
     double getSurfaceFlux(int direction, bool side, int number_of_group) const;
@@ -63,5 +63,5 @@ public:
     int getId() const { return id; }
     int getNumberOfGroups() const { return number_of_groups; }
     double getFlux(int group) const { return flux_avg[group]; }
-    double getCurrent(int group) const { return out_current[1][0][group]; }
+    double getCurrent(int dimension) const { return out_current[dimension][0][0]; }
 };

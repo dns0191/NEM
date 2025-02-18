@@ -3,12 +3,9 @@
 #include <iomanip>
 #include "class.h"
 #include "Function.h"
-#include <stdlib.h>
-#include <crtdbg.h>
-#define _CRTDBG_MAP_ALLOC
+
 
 int main() {
-    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     const double error = initializeNodesFromInput("input.inp");
     int step = 0;
     debugPrintNodes();
@@ -30,10 +27,9 @@ int main() {
                 for (const auto& node : row) {
                     if (node != nullptr) {
                         node->runNEM();
-                        for (int g = 0; g < node->getNumberOfGroups(); ++g) {
-                            outputFile << std::setw(20) << std::scientific << node->getFlux(g);
-                        }
-                        //node->getNodeInformation();
+                        
+                    	outputFile << std::setw(15) << std::scientific << node->getFlux(0);
+                        
                     }
                 }
             }
