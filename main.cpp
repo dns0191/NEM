@@ -6,9 +6,16 @@
 
 
 int main() {
+    // debug.out 파일 초기화
+    std::ofstream debugFile("debug.out", std::ios_base::trunc);
+    if (!debugFile.is_open()) {
+        std::cerr << "Unable to open debug.out file.\n";
+        return 1;
+    }
+    debugFile.close();
     const double error = initializeNodesFromInput("input.inp");
     int step = 0;
-    debugPrintNodes();
+    //debugPrintNodes();
     std::ofstream outputFile("output.out");
     if (outputFile.is_open()) {
         outputFile << "     ";
@@ -27,7 +34,7 @@ int main() {
                 for (const auto& node : row) {
                     if (node != nullptr) {
                         node->runNEM();
-                        
+                        node->getNodeInformation();
                     	outputFile << std::setw(15) << std::scientific << node->getFlux(0);
                         
                     }

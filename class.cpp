@@ -1,7 +1,6 @@
 #include "class.h"
 #include "Function.h"
 #include <queue>
-#include <stdexcept>
 #include <fstream>
 #include <cinttypes>
 #include <sstream>
@@ -77,10 +76,11 @@ void MultiGroupNode::updateAverageFlux(double*** C)
 	const int ng = number_of_groups;
 	int g;
 	std::memcpy(old_flux, flux_avg, number_of_groups * sizeof(double));
-	for (g = 0; g < ng; g++)
-	{
+	for (g = 0; g < number_of_groups; g++) {
 		SRC[g] = 0.0;
+		
 	}
+
 
 	for (int tg = 0; tg < ng; tg++)
 	{
@@ -114,21 +114,34 @@ void MultiGroupNode::updateAverageFlux(double*** C)
 	std::memcpy(flux_avg, new_flux, number_of_groups * sizeof(double));
 }
 
-void MultiGroupNode::updateOutgoingCurrent(double*** C) const
-{
-	for (int u = 0; u < dim; u++)
-	{
-		for (int g = 0; g < number_of_groups; g++)
-		{
+void MultiGroupNode::updateOutgoingCurrent(double*** C) const {
+	for (int u = 0; u < dim; u++) {
+		for (int g = 0; g < number_of_groups; g++) {
 			const double j_in_l = getIncomingCurrent(u, LEFT_SIDE, g);
 			const double j_in_r = getIncomingCurrent(u, RIGHT_SIDE, g);
-			const double j_out_l = Q[u][0][g] * (6 * flux_avg[g] - C[u][4][g]) + Q[u][1][g] * C[u][3][g] + Q[u][2][g] * j_in_r + Q[u][3][g] * j_in_l;
-			const double j_out_r = Q[u][0][g] * (6 * flux_avg[g] - C[u][4][g]) - Q[u][1][g] * C[u][3][g] + Q[u][2][g] * j_in_l + Q[u][3][g] * j_in_r;
+
+			double j_out_l, j_out_r;
+
+			if (l_node == nullptr) {
+				j_out_l = j_in_l;  // 왼쪽 이웃이 없으면 변화 없음
+			}
+			else {
+				j_out_l = Q[u][0][g] * (6 * flux_avg[g] - C[u][4][g]) + Q[u][1][g] * C[u][3][g] + Q[u][2][g] * j_in_r + Q[u][3][g] * j_in_l;
+			}
+
+			if (r_node == nullptr) {
+				j_out_r = j_in_r;  // 오른쪽 이웃이 없으면 변화 없음
+			}
+			else {
+				j_out_r = Q[u][0][g] * (6 * flux_avg[g] - C[u][4][g]) - Q[u][1][g] * C[u][3][g] + Q[u][2][g] * j_in_l + Q[u][3][g] * j_in_r;
+			}
+
 			out_current[u][0][g] = j_out_l;
 			out_current[u][1][g] = j_out_r;
 		}
 	}
 }
+
 
 void MultiGroupNode::updateTransverseLeakage(int direction, int group)
 {
@@ -139,7 +152,6 @@ void MultiGroupNode::updateTransverseLeakage(int direction, int group)
 		DL[direction][0][group] += (getSurfaceNetCurrent(v, RIGHT_SIDE, group) - getSurfaceNetCurrent(v, LEFT_SIDE, group)) / getNodeWidth(v);
 	}
 
-	const double h_c = getNodeWidth(direction);
 	const double beta_c = getBeta(direction, group);
 	const double d_c = getDiffusionCoefficient(group);
 	const double DL0_c = DL[direction][0][group];
@@ -153,7 +165,6 @@ void MultiGroupNode::updateTransverseLeakage(int direction, int group)
 	}
 	else
 	{
-		const double h_l = l_node->getNodeWidth(direction);
 		const double beta_l = l_node->getBeta(direction, group);
 		const double DL0_l = l_node->getAverageTransverseLeakage(direction, group);
 		L_l = (DL0_l * beta_l + DL0_c * beta_c) / (beta_l + beta_c);
@@ -166,7 +177,6 @@ void MultiGroupNode::updateTransverseLeakage(int direction, int group)
 	}
 	else
 	{
-		const double h_r = r_node->getNodeWidth(direction);
 		const double beta_r = r_node->getBeta(direction, group);
 		const double DL0_r = r_node->getAverageTransverseLeakage(direction, group);
 		L_r = (DL0_c * beta_c + DL0_r * beta_r) / (beta_c + beta_r);
@@ -202,7 +212,7 @@ double MultiGroupNode::getIncomingCurrent(int direction, bool side, int number_o
 	{
 		if (r_node == nullptr)
 		{
-			return 0.0;// out_current[direction][1][number_of_group];
+			return -out_current[direction][1][number_of_group];
 		}
 		else
 		{
@@ -213,7 +223,7 @@ double MultiGroupNode::getIncomingCurrent(int direction, bool side, int number_o
 	{
 		if (l_node == nullptr)
 		{
-			return 0.0;// out_current[direction][0][number_of_group];
+			return -out_current[direction][0][number_of_group];
 		}
 		else
 		{
@@ -234,21 +244,19 @@ double MultiGroupNode::getSurfaceFlux(int direction, bool side, int number_of_gr
 	}
 }
 
-double MultiGroupNode::getSurfaceNetCurrent(int direction, bool side, int number_of_group) const
-{
-	if (side == RIGHT_SIDE)
-	{
+double MultiGroupNode::getSurfaceNetCurrent(int direction, bool side, int number_of_group) const {
+	if (side == RIGHT_SIDE) {
 		const double j_in_r = getIncomingCurrent(direction, RIGHT_SIDE, number_of_group);
-		const double j_out_r = out_current[direction][1][number_of_group];
-		return j_in_r + j_out_r;
+		const double j_out_r = out_current[direction][1][number_of_group]; 
+		return j_out_r - j_in_r;
 	}
-	else
-	{
+	else {
 		const double j_in_l = getIncomingCurrent(direction, LEFT_SIDE, number_of_group);
-		const double j_out_l = out_current[direction][0][number_of_group];
-		return j_in_l + j_out_l;
+		const double j_out_l = out_current[direction][0][number_of_group]; 
+		return j_out_l - j_in_l;
 	}
 }
+
 
 MultiGroupNode* MultiGroupNode::getNeighborNode(int direction, bool side) const {
 	// 1D 저장소일 경우
@@ -411,7 +419,7 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 		out_current[i] = new double* [2];
 		for (int j = 0; j < 2; ++j) {
 			out_current[i][j] = new double[group];
-			std::memset(out_current[i][j], 0, group * sizeof(double));
+			std::fill(out_current[i][j], out_current[i][j] + group, 1.0); // 1.0으로 초기화
 		}
 	}
 
@@ -578,167 +586,169 @@ MultiGroupNode::~MultiGroupNode()
 
 void MultiGroupNode::getNodeInformation() const
 {
-	std::cout << "Node ID: " << id << "\n";
-	std::cout << "Region: " << region << "\n";
-	std::cout << "Number of Groups: " << number_of_groups << "\n";
-	std::cout << "Dimension: " << dim << "\n";
+	std::ofstream debugFile("debug.out", std::ios_base::app);
+	if (!debugFile.is_open()) {
+		std::cerr << "Unable to open debug.out file.\n";
+		return;
+	}
 
-	std::cout << "Node Width: ";
+	debugFile << "Node ID: " << id << "\n";
+	debugFile << "Region: " << region << "\n";
+	debugFile << "Number of Groups: " << number_of_groups << "\n";
+	debugFile << "Dimension: " << dim << "\n";
+
+	debugFile << "Node Width: ";
 	if (node_width) {
 		for (int i = 0; i < dim; ++i) {
-			std::cout << node_width[i] << " ";
+			debugFile << node_width[i] << " ";
 		}
 	}
 	else {
-		std::cout << "null";
+		debugFile << "null";
 	}
-	std::cout << "\n";
+	debugFile << "\n";
 
-	std::cout << "Flux Average: ";
+	debugFile << "Flux Average: ";
 	if (flux_avg) {
 		for (int i = 0; i < number_of_groups; ++i) {
-			std::cout << flux_avg[i] << " ";
+			debugFile << flux_avg[i] << " ";
 		}
 	}
 	else {
-		std::cout << "null";
+		debugFile << "null";
 	}
-	std::cout << "\n";
+	debugFile << "\n";
 
 	if (mgxs) {
-		std::cout << std::fixed << std::setprecision(3);
+		debugFile << std::fixed << std::setprecision(3);
 		for (int g = 0; g < number_of_groups; ++g) {
-			std::cout << "Group " << g + 1 << ": ";
+			debugFile << "Group " << g + 1 << ": ";
 			for (int i = 0; i < 4; ++i) {
-				std::cout << mgxs[g][i] << " ";
+				debugFile << mgxs[g][i] << " ";
 			}
-			std::cout << "\n";
+			debugFile << "\n";
 		}
 	}
 	else {
-		std::cout << "null";
+		debugFile << "null";
 	}
-	std::cout << "\n";
-
-	std::cout << "C_m values:\n";
-	for (int j = 0; j < 5; ++j) {
-		std::cout << "C_m[" << j << "]: \n";
-		for (int u = 0; u < dim; ++u) {
-			for (int g = 0; g < number_of_groups; ++g) {
-				std::cout << C_m[u][j][g] << " ";
-			}
-			std::cout << "\n";
-		}
-		std::cout << "\n";
-	}
-	std::cout << "\n";
-
-	std::cout << "A values:\n";
-	for (int i = 0; i < number_of_groups; ++i) {
-		for (int j = 0; j < number_of_groups; ++j) {
-			std::cout << A[i][j] << " ";
-		}
-		std::cout << "\n";
-	}
-	std::cout << "\n";
-
-	std::cout << "D values:\n";
-	for (int i = 0; i < number_of_groups; i++)
-	{
-		std::cout << D_c[i] << " ";
-	}
-	std::cout << "\n\n";
-
-	std::cout << "M3:\n";
-	for (int i = 0; i < dim; i++)
-	{
-		for (int j = 0; j < number_of_groups; j++)
-		{
-			for (int k = 0; k < number_of_groups; k++)
-			{
-				std::cout << M3[i][j][k] << " ";
-			}
-			std::cout << "\n";
-		}
-		std::cout << "\n";
-	}
-
-	std::cout << "M4:\n";
-	for (int i = 0; i < dim; i++)
-	{
-		for (int j = 0; j < number_of_groups; j++)
-		{
-			for (int k = 0; k < number_of_groups; k++)
-			{
-				std::cout << M4[i][j][k] << " ";
-			}
-			std::cout << "\n";
-		}
-		std::cout << "\n";
-	}
+	debugFile << "\n";
 
 	
-	for (int i = 0; i < 4; i++) {
-		std::cout << "Q"<<i<<":\n";
+	debugFile << "A values:\n";
+	for (int i = 0; i < number_of_groups; ++i) {
+		for (int j = 0; j < number_of_groups; ++j) {
+			debugFile << A[i][j] << " ";
+		}
+		debugFile << "\n";
+	}
+	debugFile << "\n";
+
+	debugFile << "D values:\n";
+	for (int i = 0; i < number_of_groups; i++) {
+		debugFile << D_c[i] << " ";
+	}
+	debugFile << "\n\n";
+
+	debugFile << "M3:\n";
+	for (int i = 0; i < dim; i++) {
+		for (int j = 0; j < number_of_groups; j++) {
+			for (int k = 0; k < number_of_groups; k++) {
+				debugFile << M3[i][j][k] << " ";
+			}
+			debugFile << "\n";
+		}
+		debugFile << "\n";
+	}
+
+	debugFile << "M4:\n";
+	for (int i = 0; i < dim; i++) {
+		for (int j = 0; j < number_of_groups; j++) {
+			for (int k = 0; k < number_of_groups; k++) {
+				debugFile << M4[i][j][k] << " ";
+			}
+			debugFile << "\n";
+		}
+		debugFile << "\n";
+	}
+
+	debugFile << "Q values:\n";
+	for (int i = 0; i < dim; i++) {
+		for (int j = 0; j < 4; j++) {
+			debugFile << "Q[" << i << "][" << j << "]: ";
+			for (int k = 0; k < number_of_groups; k++) {
+				debugFile << Q[i][j][k] << " ";
+			}
+			debugFile << "\n";
+		}
+		debugFile << "\n";
+	}
+
+	debugFile << "C_m values:\n";
+	debugFile << std::scientific;
+	for (int j = 0; j < 5; ++j) {
+		debugFile << "C_m[" << j << "]: \n";
+		for (int u = 0; u < dim; ++u) {
+			for (int g = 0; g < number_of_groups; ++g) {
+				debugFile << C_m[u][j][g] << " ";
+			}
+			debugFile << "\n";
+		}
+		debugFile << "\n";
+	}
+	debugFile << "\n";
+
+	debugFile << "DL values:\n";
+	for (int i = 0; i < 3; i++) {
+		debugFile << "DL[" << i << "]" << ":\n";
 		for (int j = 0; j < dim; j++) {
 			for (int k = 0; k < number_of_groups; k++) {
-				std::cout << Q[j][i][k] << " ";
+				debugFile << DL[j][i][k] << " ";
 			}
-			std::cout << "\n";
+			debugFile << "\n";
 		}
-		std::cout << "\n";
+		debugFile << "\n";
 	}
 
-	for(int i=0; i<3; i++)
-	{
-		std::cout << "DL["<<i<<"]"<< ":\n";
-		for(int j=0; j<dim; j++)
-		{
-			for (int k=0; k<number_of_groups; k++)
-			{
-				std::cout << DL[j][i][k] << " ";
+	debugFile << "out_current values:\n";
+	for (int i = 0; i < 2; i++) {
+		debugFile << "out_current[" << i << "]" << ":\n";
+		for (int j = 0; j < dim; j++) {
+			for (int k = 0; k < number_of_groups; k++) {
+				debugFile << out_current[j][i][k] << " ";
 			}
-			std::cout << "\n";
+			debugFile << "\n";
 		}
-		std::cout << "\n";
+		debugFile << "\n";
 	}
 
-	for (int i = 0; i < 2; i++)
-	{
-		std::cout << "out_current[" << i << "]" << ":\n";
-		for (int j = 0; j < dim; j++)
-		{
-			for (int k = 0; k < number_of_groups; k++)
-			{
-				std::cout << out_current[j][i][k] << " ";
-			}
-			std::cout << "\n";
-		}
-		std::cout << "\n";
-	}
-
-	std::cout << "Neighbor Node IDs:\n";
+	debugFile << "Neighbor Node IDs:\n";
 	for (int direction = 0; direction < dim; ++direction) {
 		const MultiGroupNode* leftNeighbor = getNeighborNode(direction, LEFT_SIDE);
 		const MultiGroupNode* rightNeighbor = getNeighborNode(direction, RIGHT_SIDE);
-		std::cout << "Direction " << direction << ":\n";
-		std::cout << "  Left Neighbor ID: " << (leftNeighbor ? leftNeighbor->id : -1) << "\n";
-		std::cout << "  Right Neighbor ID: " << (rightNeighbor ? rightNeighbor->id : -1) << "\n";
+		debugFile << "Direction " << direction << ":\n";
+		debugFile << "  Left Neighbor ID: " << (leftNeighbor ? leftNeighbor->id : -1) << "\n";
+		debugFile << "  Right Neighbor ID: " << (rightNeighbor ? rightNeighbor->id : -1) << "\n";
 	}
-	std::cout << "\n\n";
+	debugFile << "\n\n";
+
+	debugFile.close();
 }
+
+
 
 void MultiGroupNode::runNEM()
 {
 	const int ng = number_of_groups;
 	
 	// 각 방향(u) 및 그룹(g)마다 transverse leakage 업데이트
+	//std::cout << id << "\n";
 	for (int u = 0; u < dim; u++) {
 		for (int g = 0; g < ng; g++) {
 			updateTransverseLeakage(u, g);
+			//std::cout << "DL" <<u<<g+1<<": " << DL[u][0][g] << ", " << DL[u][1][g] << ", " << DL[u][2][g] << "\n";
 		}
 	}
-	
 	// 1차원 플럭스 계산
 	makeOneDimensionalFlux(C_m);
 
