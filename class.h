@@ -50,8 +50,9 @@ private:
     double getIncomingCurrent(int direction, bool side, int number_of_group) const;
     double getAverageTransverseLeakage(int direction, int group) const;
     MultiGroupNode* getNeighborNode(int direction, bool side) const;
-    static void GaussianElimination(double** M, double*& C, double* src, int ng);
-    double* add_product(double* src, double* C, int ng) const;
+    static void updateC(double** M, double* C, double* src, int ng);
+    static void invertMatrix(double** M, double** M_inv, int n);
+    void add_product(double* src, double* C, int ng);
 
 public:
     MultiGroupNode(int node_id, int node_region, int group, int dimension, double* width);
