@@ -3,7 +3,6 @@
 #include <queue>
 #include <fstream>
 #include <cinttypes>
-#include <sstream>
 #include <vector>
 #include <iomanip>
 #include <cmath>
@@ -381,10 +380,12 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 		A[i][i] = mgxs[i][1];
 	}
 	double k_eff = 1.0;
-	A[0][0] = mgxs[0][1] - (mgxs[0][3] / k_eff);
-	A[0][1] = -mgxs[0][2];
-	A[1][0] = -mgxs[1][2];
-	A[1][1] = mgxs[1][1] - (mgxs[1][3] / k_eff);
+	if (group > 1) {
+		A[0][0] = mgxs[0][1] - (mgxs[0][3] / k_eff);
+		A[0][1] = -mgxs[0][2];
+		A[1][0] = -mgxs[1][2];
+		A[1][1] = mgxs[1][1] - (mgxs[1][3] / k_eff);
+	}
 
 	out_current = new double** [dimension];
 	for (int i = 0; i < dimension; ++i) {

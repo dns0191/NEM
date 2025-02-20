@@ -4,6 +4,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <vector>
+#include <Eigen/Dense>
 
 double* product_matrix(double** A, double* C, int ng)
 {
