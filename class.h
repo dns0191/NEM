@@ -15,20 +15,13 @@ extern std::vector<std::vector<std::vector<MultiGroupNode*>>> nodeGrid3D;
 
 class MultiGroupNode {
 private:
-    int number_of_groups;
-    int dim;
-    int id, region;
-    std::vector<Eigen::MatrixXd> DL; // Transverse Leakage
-    Eigen::VectorXd node_width, flux_avg, old_flux, new_flux;
-    std::vector<Eigen::MatrixXd> out_current;
-    Eigen::MatrixXd A, MM;
-	std::vector<Eigen::MatrixXd> M3, M4; // Removal Cross_Section, M3, M4, Q0
-    Eigen::VectorXd D_c; // Diffusion Coefficient
-    std::vector<Eigen::MatrixXd> Q, C_m;
-    Eigen::VectorXd SRC, SRC1, SRC2; // Node Average Flux -> s
+    int number_of_groups, dim, id, region;
     int* neighbor_node[2];
-    Eigen::MatrixXd mgxs;
     double L_l, L_r;
+    std::vector<Eigen::MatrixXd> DL; // Transverse Leakage
+    Eigen::VectorXd node_width, flux_avg, old_flux, new_flux, SRC, SRC1, SRC2, D_c;
+    Eigen::MatrixXd A, MM, mgxs;
+	std::vector<Eigen::MatrixXd> M3, M4, Q, C_m, out_current;
     MultiGroupNode* l_node, * r_node;
 
     void makeOneDimensionalFlux(std::vector<Eigen::MatrixXd>& C);
@@ -43,8 +36,6 @@ private:
     double getIncomingCurrent(int direction, bool side, int number_of_group) const;
     double getAverageTransverseLeakage(int direction, int group) const;
     MultiGroupNode* getNeighborNode(int direction, bool side) const;
-    static void updateC(const Eigen::MatrixXd& M, Eigen::VectorXd& C, const Eigen::VectorXd& src, int ng);
-    void add_product(Eigen::VectorXd& src, const Eigen::VectorXd& C, int ng);
 
 public:
     MultiGroupNode(int node_id, int node_region, int group, int dimension, const Eigen::VectorXd width);
@@ -56,5 +47,5 @@ public:
     int getId() const { return id; }
     int getNumberOfGroups() const { return number_of_groups; }
     double getFlux(int group) const { return flux_avg[group]; }
-    double getCurrent(int dimension) const { return out_current[dimension](0, 0); }
+    double getCurrent(int dimension) const { return out_current[dimension](1, 1); }
 };

@@ -40,21 +40,19 @@ void MultiGroupNode::makeOneDimensionalFlux(std::vector<Eigen::MatrixXd>& C)
 		SRC1 = DL[u].row(1);
 		SRC2 = DL[u].row(2);
 
-		add_product(SRC1, C[u].row(1), ng);
-		add_product(SRC2, C[u].row(2), ng);
+		SRC1 += A * C[u].row(1).transpose();
+		SRC2 += A * C[u].row(2).transpose();
 
 		Eigen::VectorXd C_row_3 = C[u].row(3);
 		Eigen::VectorXd C_row_4 = C[u].row(4);
 
-		updateC(M3[u], C_row_3, SRC1, ng);
-		updateC(M4[u], C_row_4, SRC2, ng);
+		C_row_3 = M3[u].inverse() * SRC1;
+		C_row_4 = M4[u].inverse() * SRC2;
 
 		C[u].row(3) = C_row_3;
 		C[u].row(4) = C_row_4;
 	}
 }
-
-
 
 void MultiGroupNode::updateAverageFlux(std::vector<Eigen::MatrixXd>& C)
 {
@@ -80,7 +78,7 @@ void MultiGroupNode::updateAverageFlux(std::vector<Eigen::MatrixXd>& C)
 		}
 	}
 
-	updateC(MM, new_flux, SRC, ng);
+	new_flux = MM.inverse() * SRC;
 	flux_avg = new_flux;
 }
 
@@ -205,16 +203,6 @@ MultiGroupNode* MultiGroupNode::getNeighborNode(int direction, bool side) const 
 	return nullptr;  // 이웃이 없으면 nullptr 반환
 }
 
-void MultiGroupNode::add_product(Eigen::VectorXd& src, const Eigen::VectorXd& C, int ng)
-{
-	src += A * C;
-}
-
-void MultiGroupNode::updateC(const Eigen::MatrixXd& M, Eigen::VectorXd& C, const Eigen::VectorXd& src, int ng)
-{
-	C = M.inverse() * src;
-}
-
 void MultiGroupNode::setFluxAvg(const std::vector<double>& avgFluxValues) {
 	std::copy(avgFluxValues.begin(), avgFluxValues.end(), flux_avg.data());
 }
@@ -251,9 +239,9 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	double k_eff = 1.0;
 	if (group > 1) {
 		A(0, 0) = mgxs(0, 1) - (mgxs(0, 3) / k_eff);
-		A(0, 1) = -mgxs(0, 2); 
+		A(0, 1) = -(mgxs(1, 3) / k_eff);
 		A(1, 0) = -mgxs(1, 2); 
-		A(1, 1) = mgxs(1, 1) - (mgxs(1, 3) / k_eff);
+		A(1, 1) = mgxs(1, 1);
 	}
 
 	out_current.resize(dimension, Eigen::MatrixXd::Zero(2, group));

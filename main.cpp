@@ -7,7 +7,7 @@
 
 int main() {
     // debug.out 파일 초기화
-    static std::ofstream debugFile("debug.out", std::ios_base::app);
+    std::ofstream debugFile("debug.out", std::ios_base::trunc);
     if (!debugFile.is_open()) {
         return 1;
     }
@@ -24,7 +24,7 @@ int main() {
         for (const auto& row : nodeGrid2D) {
             for (const auto& node : row) {
                 if (node != nullptr) {
-                    outputFile << std::setw(15) << " " << std::setw(3) << node->getId() << std::setw(12) << " ";
+                    outputFile << std::setw(12) << " " << std::setw(3) << node->getId();
                 }
             }
         }
@@ -35,10 +35,9 @@ int main() {
             for (const auto& row : nodeGrid2D) {
                 for (const auto& node : row) {
                     if (node != nullptr) {
+                        outputFile << std::setw(15) << std::scientific << node->getCurrent(1);
                         node->runNEM();
                         node->getNodeInformation();
-                    	outputFile << std::setw(15) << std::scientific << node->getFlux(0);
-                        
                     }
                 }
             }

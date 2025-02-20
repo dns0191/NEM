@@ -122,7 +122,7 @@ double initializeNodesFromInput(const std::string& filename) {
 
         nodeGrid2D.resize(x_size, std::vector<MultiGroupNode*>(y_size, nullptr));
 
-        std::cout << "Initializing 2D node grid: " << x_size << "x" << y_size << std::endl;
+        std::cout << "Initializing 2D node grid: " << x_size << "x" << y_size << "\n";
 
         for (size_t x = 0; x < x_size; ++x) {
             for (size_t y = 0; y < y_size; ++y) {
@@ -137,10 +137,10 @@ double initializeNodesFromInput(const std::string& filename) {
                         Eigen::VectorXd node_widths = Eigen::VectorXd::Map(nodeWidths.data(), DIM);
                         nodeGrid2D[x][y] = new MultiGroupNode(static_cast<int>(index), region, GROUP_NUM, 2, node_widths);
                         nodeGrid2D[x][y]->setFluxAvg(avgFluxValues);
-                        std::cout << "Created node (" << x << ", " << y << ") with ID " << index << ", region " << region << std::endl;
+                        std::cout << "Created node (" << x << ", " << y << ") with ID " << index << ", region " << region << "\n";
                     }
                     catch (const std::exception& e) {
-                        std::cerr << "Error initializing node (" << x << ", " << y << "): " << e.what() << std::endl;
+                        std::cerr << "Error initializing node (" << x << ", " << y << "): " << e.what() << "\n";
                         throw;
                     }
                 }
@@ -183,9 +183,7 @@ void debugPrintNodes() {
         std::cout << "Region ID: " << region_id << "\n";
         for (size_t g = 0; g < xs_values.size(); ++g) {
             std::cout << "  Group " << g + 1 << ": ";
-            for (size_t i = 0; i < xs_values[g].size(); ++i) {
-                std::cout << xs_values[g][i] << " ";
-            }
+            for (size_t i = 0; i < xs_values[g].size(); ++i) std::cout << xs_values[g][i] << " ";
             std::cout << "\n";
         }
     }
