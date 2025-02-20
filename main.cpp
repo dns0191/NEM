@@ -7,15 +7,17 @@
 
 int main() {
     // debug.out 파일 초기화
-    std::ofstream debugFile("debug.out", std::ios_base::trunc);
+    static std::ofstream debugFile("debug.out", std::ios_base::app);
     if (!debugFile.is_open()) {
-        std::cerr << "Unable to open debug.out file.\n";
         return 1;
     }
     debugFile.close();
     const double error = initializeNodesFromInput("input.inp");
+    std::cout << "nodeGrid1D size: " << nodeGrid1D.size() << std::endl;
+    std::cout << "nodeGrid2D size: " << nodeGrid2D.size() << ", " << nodeGrid2D[0].size() << std::endl;
+
     int step = 0;
-    //debugPrintNodes();
+    debugPrintNodes();
     std::ofstream outputFile("output.out");
     if (outputFile.is_open()) {
         outputFile << "     ";

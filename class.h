@@ -1,6 +1,7 @@
 #pragma once
 #include <unordered_map>
 #include <vector>
+#include <Eigen/Dense>
 
 class MultiGroupNode;
 
@@ -17,30 +18,22 @@ private:
     int number_of_groups;
     int dim;
     int id, region;
-    double*** DL, * node_width, * flux_avg, * old_flux, * new_flux, *** out_current;
-    /*
-        DL: Transverse Leakage
-    */
-    double** A, *** M3, *** M4, * D_c, ** MM;
-    /*
-        A: Removal Cross_Section
-        M3: (6/node_width^2 + 1/10 * A)^-1 * M1
-        M4: (10/node_width^2 + 1/14 * A)^-1 * M2
-        D_c: Diffusion Coefficient
-        MM: Q0
-    */
-    double*** Q;
-    double*** C_m;
-    double* SRC, * SRC1, * SRC2;
-    // SRC: Node Average Flux -> s
+    std::vector<Eigen::MatrixXd> DL; // Transverse Leakage
+    Eigen::VectorXd node_width, flux_avg, old_flux, new_flux;
+    std::vector<Eigen::MatrixXd> out_current;
+    Eigen::MatrixXd A, MM;
+	std::vector<Eigen::MatrixXd> M3, M4; // Removal Cross_Section, M3, M4, Q0
+    Eigen::VectorXd D_c; // Diffusion Coefficient
+    std::vector<Eigen::MatrixXd> Q, C_m;
+    Eigen::VectorXd SRC, SRC1, SRC2; // Node Average Flux -> s
     int* neighbor_node[2];
-    double** mgxs;
+    Eigen::MatrixXd mgxs;
     double L_l, L_r;
     MultiGroupNode* l_node, * r_node;
 
-    void makeOneDimensionalFlux(double*** C);
-    void updateAverageFlux(double*** C);
-    void updateOutgoingCurrent(double*** C) const;
+    void makeOneDimensionalFlux(std::vector<Eigen::MatrixXd>& C);
+    void updateAverageFlux(std::vector<Eigen::MatrixXd>& C);
+    void updateOutgoingCurrent(const std::vector<Eigen::MatrixXd>& C);
     void updateTransverseLeakage(int direction, int group);
     double getNodeWidth(int direction) const;
     double getSurfaceFlux(int direction, bool side, int number_of_group) const;
@@ -50,12 +43,11 @@ private:
     double getIncomingCurrent(int direction, bool side, int number_of_group) const;
     double getAverageTransverseLeakage(int direction, int group) const;
     MultiGroupNode* getNeighborNode(int direction, bool side) const;
-    static void updateC(double** M, double* C, double* src, int ng);
-    static void invertMatrix(double** M, double** M_inv, int n);
-    void add_product(double* src, double* C, int ng);
+    static void updateC(const Eigen::MatrixXd& M, Eigen::VectorXd& C, const Eigen::VectorXd& src, int ng);
+    void add_product(Eigen::VectorXd& src, const Eigen::VectorXd& C, int ng);
 
 public:
-    MultiGroupNode(int node_id, int node_region, int group, int dimension, double* width);
+    MultiGroupNode(int node_id, int node_region, int group, int dimension, const Eigen::VectorXd width);
     ~MultiGroupNode();
     void getNodeInformation() const;
     void runNEM();
@@ -64,5 +56,5 @@ public:
     int getId() const { return id; }
     int getNumberOfGroups() const { return number_of_groups; }
     double getFlux(int group) const { return flux_avg[group]; }
-    double getCurrent(int dimension) const { return out_current[dimension][0][0]; }
+    double getCurrent(int dimension) const { return out_current[dimension](0, 0); }
 };
