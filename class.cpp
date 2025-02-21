@@ -238,7 +238,7 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	}
 	
 	if (group > 1) {
-		double k_eff = 1.0;
+		constexpr double k_eff = 1.0;
 		A(0, 0) = mg_xs(0, 1) - (mg_xs(0, 3) / k_eff);
 		A(0, 1) = -(mg_xs(1, 3) / k_eff);
 		A(1, 0) = -mg_xs(1, 2); 
