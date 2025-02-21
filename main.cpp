@@ -12,16 +12,15 @@ int main() {
         return 1;
     }
     debugFile.close();
-    const double error = initializeNodesFromInput("input.txt");
-    std::cout << "nodeGrid1D size: " << nodeGrid1D.size() << "\n";
-    std::cout << "nodeGrid2D size: " << nodeGrid2D.size() << ", " << nodeGrid2D[0].size() << "\n";
+    const double error = initializeNodesFromInput("input.inp");
+    std::cout << "nodeGrid1D size: " << nodeGrid1D.size() << std::endl;
+    std::cout << "nodeGrid2D size: " << nodeGrid2D.size() << ", " << nodeGrid2D[0].size() << std::endl;
 
-    
+    int step = 0;
     debugPrintNodes();
     std::ofstream outputFile("output.out");
     if (outputFile.is_open()) {
         outputFile << "     ";
-        int step = 0;
         for (const auto& row : nodeGrid2D) {
             for (const auto& node : row) {
                 if (node != nullptr) {
