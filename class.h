@@ -20,7 +20,7 @@ private:
     double L_l, L_r;
     std::vector<Eigen::MatrixXd> DL; // Transverse Leakage
     Eigen::VectorXd node_width, flux_avg, old_flux, new_flux, SRC, SRC1, SRC2, D_c;
-    Eigen::MatrixXd A, MM, mgxs;
+    Eigen::MatrixXd A, MM, mg_xs;
 	std::vector<Eigen::MatrixXd> M3, M4, Q, C_m, out_current;
     MultiGroupNode* l_node, * r_node;
 
@@ -38,8 +38,19 @@ private:
     MultiGroupNode* getNeighborNode(int direction, bool side) const;
 
 public:
-    MultiGroupNode(int node_id, int node_region, int group, int dimension, const Eigen::VectorXd width);
+    MultiGroupNode(int node_id, int node_region, int group, int dimension, Eigen::VectorXd width);
     ~MultiGroupNode();
+    // 복사 생성자
+    MultiGroupNode(const MultiGroupNode& other) = default;
+
+    // 복사 할당 연산자
+    MultiGroupNode& operator=(const MultiGroupNode& other) = default;
+
+    // 이동 생성자
+    MultiGroupNode(MultiGroupNode&& other) noexcept = default;
+
+    // 이동 할당 연산자
+    MultiGroupNode& operator=(MultiGroupNode&& other) noexcept = default;
     void getNodeInformation() const;
     void runNEM();
     void setFluxAvg(const std::vector<double>& avgFluxValues);

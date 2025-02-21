@@ -217,31 +217,32 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	SRC1 = Eigen::VectorXd::Zero(group);
 	SRC2 = Eigen::VectorXd::Zero(group);
 	D_c = Eigen::VectorXd::Zero(group);
-	mgxs = Eigen::MatrixXd::Zero(group, 4);
+	mg_xs = Eigen::MatrixXd::Zero(group, 4);
 
 	
 	const auto& xs_data = crossSections[region];
 	for (int g = 0; g < group; g++) {
 		for (int i = 0; i < 4; i++) {
-			mgxs(g, i) = xs_data[g][i];
+			mg_xs(g, i) = xs_data[g][i];
 		}
 	}
 	for (int i = 0; i < group; i++)
 	{
-		D_c[i] = mgxs(i,0);
+		D_c[i] = mg_xs(i,0);
 	}
 	DL.resize(dimension, Eigen::MatrixXd::Zero(3, group));
 	A = Eigen::MatrixXd::Zero(group, group);
 	MM = Eigen::Matrix2Xd::Zero(group, group);
 	for (int i = 0; i < group; ++i) {
-		A(i, i) = mgxs(i, 1);
+		A(i, i) = mg_xs(i, 1);
 	}
-	double k_eff = 1.0;
+	
 	if (group > 1) {
-		A(0, 0) = mgxs(0, 1) - (mgxs(0, 3) / k_eff);
-		A(0, 1) = -(mgxs(1, 3) / k_eff);
-		A(1, 0) = -mgxs(1, 2); 
-		A(1, 1) = mgxs(1, 1);
+		double k_eff = 1.0;
+		A(0, 0) = mg_xs(0, 1) - (mg_xs(0, 3) / k_eff);
+		A(0, 1) = -(mg_xs(1, 3) / k_eff);
+		A(1, 0) = -mg_xs(1, 2); 
+		A(1, 1) = mg_xs(1, 1);
 	}
 
 	out_current.resize(dimension, Eigen::MatrixXd::Zero(2, group));
@@ -258,8 +259,8 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 				M4[u](i, j) = static_cast<double>(1) / 14 * A(i, j);
 
 				if (i == j) {
-					M3[u](i, j) += 6 / (width[u] * width[u]) * mgxs(i, 0);
-					M4[u](i, j) += 10 / (width[u] * width[u]) * mgxs(i, 0);
+					M3[u](i, j) += 6 / (width[u] * width[u]) * mg_xs(i, 0);
+					M4[u](i, j) += 10 / (width[u] * width[u]) * mg_xs(i, 0);
 				}
 			}
 		}
@@ -323,7 +324,7 @@ void MultiGroupNode::getNodeInformation() const
 	for (int g = 0; g < number_of_groups; ++g) {
 		debugFile << "Group " << g + 1 << ": ";
 		for (int i = 0; i < 4; ++i) {
-			debugFile << mgxs(g, i) << " ";
+			debugFile << mg_xs(g, i) << " ";
 		}
 		debugFile << "\n";
 	}
@@ -340,7 +341,7 @@ void MultiGroupNode::getNodeInformation() const
 
 	debugFile << "D values:\n";
 	for (int i = 0; i < number_of_groups; i++) {
-		debugFile << mgxs(i, 0) << " ";
+		debugFile << mg_xs(i, 0) << " ";
 	}
 	debugFile << "\n\n";
 
