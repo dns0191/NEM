@@ -70,25 +70,27 @@ void MultiGroupNode::updateAverageFlux(std::vector<Eigen::MatrixXd>& C)
 	{
 		for (int u = 0; u < dim; u++)
 		{
-			const double j_in_l = getIncomingCurrent(u, LEFT_SIDE, g);
 			const double j_in_r = getIncomingCurrent(u, RIGHT_SIDE, g);
+			const double j_in_l = getIncomingCurrent(u, LEFT_SIDE, g);
 			const double Q4 = 1.0 - Q[u](2, g) - Q[u](3, g);
 			SRC[g] += (2.0 * Q[u](0, g) * C[u](4, g) + Q4 * (j_in_l + j_in_r)) / node_width[u];
 		}
 	}
 
-	new_flux = MM.inverse() * SRC;
-	flux_avg = new_flux;
+	const Eigen::PartialPivLU<Eigen::MatrixXd> solver(MM);
+	flux_avg = solver.solve(SRC);
 }
+
 
 
 void MultiGroupNode::updateOutgoingCurrent(const std::vector<Eigen::MatrixXd>& C) {
 	for (int u = 0; u < dim; u++) {
 		for (int g = 0; g < number_of_groups; g++) {
-			const double j_in_l = getIncomingCurrent(u, LEFT_SIDE, g);
 			const double j_in_r = getIncomingCurrent(u, RIGHT_SIDE, g);
-			const double j_out_l = Q[u](0, g) * (6 * flux_avg[g] - C[u](4, g)) + Q[u](1, g) * C[u](3, g) + Q[u](2, g) * j_in_r + Q[u](3, g) * j_in_l;
-			const double j_out_r = Q[u](0, g) * (6 * flux_avg[g] - C[u](4, g)) - Q[u](1, g) * C[u](3, g) + Q[u](2, g) * j_in_l + Q[u](3, g) * j_in_r;
+			const double j_in_l = getIncomingCurrent(u, LEFT_SIDE, g);
+			const double j_out_r = Q[u](0, g) * (6 * flux_avg[g] - C[u](4, g)) - Q[u](1, g) * C[u](3, g) - Q[u](2, g) * j_in_l + Q[u](3, g) * j_in_r;
+			const double j_out_l = Q[u](0, g) * (6 * flux_avg[g] - C[u](4, g)) + Q[u](1, g) * C[u](3, g) - Q[u](2, g) * j_in_r + Q[u](3, g) * j_in_l;
+
 			out_current[u](0, g) = j_out_l;
 			out_current[u](1, g) = j_out_r;
 		}
@@ -126,6 +128,7 @@ void MultiGroupNode::updateTransverseLeakage(int direction, int group)
     L_r = (DL0_c / h_c + DL0_r / h_r) / (beta_c + beta_r);
 
     // 최종 횡단 누출량 업데이트
+	DL[direction](0, group) = DL0_c;
     DL[direction](1, group) = d_c * (L_r - L_l) / 2.0;
     DL[direction](2, group) = d_c * (L_r + L_l - 2.0 * DL0_c / d_c) / 2.0;
 }
@@ -151,17 +154,23 @@ double MultiGroupNode::getDiffusionCoefficient(int number_of_group) const
 	return D_c[number_of_group];
 }
 
-double MultiGroupNode::getIncomingCurrent(int direction, bool side, int number_of_group) const
-{
+double MultiGroupNode::getIncomingCurrent(int direction, bool side, int number_of_group) const {
 	MultiGroupNode* node = getNeighborNode(direction, side);
-	return (node ? node->out_current[direction](!side, number_of_group) : out_current[direction](side, number_of_group));
+	if (!node) {
+		// 반사 경계 조건 적용 (현재 값 유지)
+		return out_current[direction](side, number_of_group);
+	}
+	return node->out_current[direction](!side, number_of_group);
 }
 
-
-double MultiGroupNode::getSurfaceFlux(int direction, bool side, int number_of_group) const
-{
-	const double j_in = getIncomingCurrent(direction, side, number_of_group);
-	const double j_out = out_current[direction](side, number_of_group);
+double MultiGroupNode::getSurfaceFlux(int direction, bool side, int number_of_group) const {
+	MultiGroupNode* node = getNeighborNode(direction, side);
+	if (!node) {
+		// 반사 경계 조건 적용 (현재 값 유지)
+		return flux_avg[number_of_group];
+	}
+	const double j_in = node->getIncomingCurrent(direction, !side, number_of_group);
+	const double j_out = node->out_current[direction](!side, number_of_group);
 	return 2 * (j_in + j_out);
 }
 
@@ -183,8 +192,8 @@ MultiGroupNode* MultiGroupNode::getNeighborNode(int direction, bool side) const 
 	// 2D 저장소일 경우
 	else if (dim == 2) {
 		const int y_size = static_cast<int>(nodeGrid2D[0].size());
-		const int x = id / y_size;   // 몫
-		const int y = id % y_size;   // 나머지
+		const int x = id / y_size;   
+		const int y = id % y_size;   
 
 		if (direction == 0) { // X 방향
 			const int neighbor_x = (side == LEFT_SIDE) ? x - 1 : x + 1;
@@ -237,7 +246,7 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	}
 	
 	if (group > 1) {
-		constexpr double k_eff = 1.0;
+		constexpr double k_eff = 0.1;
 		A(0, 0) = mg_xs(0, 1) - (mg_xs(0, 3) / k_eff);
 		A(0, 1) = -(mg_xs(1, 3) / k_eff);
 		A(1, 0) = -mg_xs(1, 2); 
@@ -392,6 +401,22 @@ void MultiGroupNode::getNodeInformation() const
 		debugFile << "\n";
 	}
 
+	debugFile << "MM values:\n";
+	for (int i = 0; i < number_of_groups; ++i) {
+		for (int j = 0; j < number_of_groups; ++j) {
+			debugFile << MM(i, j) << " ";
+		}
+		debugFile << "\n";
+	}
+	debugFile << MM.determinant() << "\n";
+	debugFile << "\n";
+
+	debugFile << "s values:\n";
+	for (int i = 0; i < number_of_groups; i++) {
+		debugFile <<SRC[i] << " ";
+	}
+	debugFile << "\n\n";
+
 	debugFile << "C_m values:\n";
 	for (int j = 0; j < 5; ++j) {
 		debugFile << "C_m[" << j << "]: \n";
@@ -418,11 +443,11 @@ void MultiGroupNode::getNodeInformation() const
 	}
 
 	debugFile << "out_current values:\n";
-	for (int i = 0; i < 2; i++) {
+	for (int i = 0; i < dim; i++) {
 		debugFile << "out_current[" << i << "]" << ":\n";
-		for (int j = 0; j < dim; j++) {
+		for (int j = 0; j < 2; j++) {
 			for (int k = 0; k < number_of_groups; k++) {
-				debugFile << out_current[j](i, k) << " ";
+				debugFile << out_current[i](j, k) << " ";
 			}
 			debugFile << "\n";
 		}
@@ -445,13 +470,10 @@ void MultiGroupNode::getNodeInformation() const
 void MultiGroupNode::runNEM()
 {
 	const int ng = number_of_groups;
-
-	// 벡터 연산을 활용한 횡단 누출량 업데이트
 	for (int u = 0; u < dim; u++)
 		for (int g = 0; g < ng; g++)
 			updateTransverseLeakage(u, g);
 
-	// 플럭스 계산 및 업데이트
 	makeOneDimensionalFlux(C_m);
 	updateAverageFlux(C_m);
 	updateOutgoingCurrent(C_m);

@@ -12,7 +12,7 @@ int main() {
         return 1;
     }
     debugFile.close();
-    const double error = initializeNodesFromInput("input.inp");
+    const double error = initializeNodesFromInput("input.txt");
     std::cout << "nodeGrid1D size: " << nodeGrid1D.size() <<"\n";
     std::cout << "nodeGrid2D size: " << nodeGrid2D.size() << ", " << nodeGrid2D[0].size() << "\n";
 
@@ -36,7 +36,7 @@ int main() {
             for (const auto& row : nodeGrid2D) {
                 for (const auto& node : row) {
                     if (node != nullptr) {
-                        outputFile << std::setw(15) << std::scientific << node->getCurrent(1);
+                        outputFile << std::setw(15) << std::scientific << node->getFlux(0);
                         node->runNEM();
                         node->getNodeInformation();
                     }
