@@ -163,9 +163,8 @@ void debugPrintNodes() {
     }
     if (!nodeGrid2D.empty()) {
         std::cout << " 2D Node Grid Detected (" << nodeGrid2D.size() << " x " << nodeGrid2D[0].size() << ")\n";
-        for (size_t x = 0; x < nodeGrid2D.size(); ++x) {
-            for (size_t y = 0; y < nodeGrid2D[x].size(); ++y) {
-                const MultiGroupNode* node = nodeGrid2D[x][y];
+        for (const auto& row : nodeGrid2D) {
+            for (const auto& node : row) {
                 if (node == nullptr) continue;
                 node->getNodeInformation();
             }
@@ -183,12 +182,15 @@ void debugPrintNodes() {
         std::cout << "Region ID: " << region_id << "\n";
         for (size_t g = 0; g < xs_values.size(); ++g) {
             std::cout << "  Group " << g + 1 << ": ";
-            for (size_t i = 0; i < xs_values[g].size(); ++i) std::cout << xs_values[g][i] << " ";
+            for (const auto& value : xs_values[g]) {
+                std::cout << value << " ";
+            }
             std::cout << "\n";
         }
     }
     std::cout << "==== End of Debugging ====" << "\n";
 }
+
 
 bool totalConvergence(double ERROR)
 {
