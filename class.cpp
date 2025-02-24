@@ -5,7 +5,6 @@
 #include <vector>
 #include <iomanip>
 #include <cmath>
-#include <cstring>
 #include <iostream>
 #include <Eigen/Dense>
 
