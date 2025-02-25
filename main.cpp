@@ -43,7 +43,7 @@ int main() {
             for (const auto& row : nodeGrid2D) {
                 for (const auto& node : row) {
                     if (node != nullptr) {
-                        outputFile << std::setw(15) << std::scientific << node->getFlux(0);
+                        outputFile << std::setw(15) << std::scientific << node->getCurrent(1,1,0);
                         node->runNEM();
                         
                     }
