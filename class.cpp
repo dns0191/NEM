@@ -92,7 +92,6 @@ void MultiGroupNode::updateOutgoingCurrent(const std::vector<Eigen::MatrixXd>& C
 
 			out_current[u](0, g) = j_out_l;
 			out_current[u](1, g) = j_out_r;
-			std::cout << "Node " << id << " Group " << g << " Current " << u << " Left " << out_current[u](0,g) << " Right " << out_current[u](1, g) << std::endl;
 		}
 	}
 }
@@ -102,17 +101,23 @@ void MultiGroupNode::updateOutgoingCurrent(const std::vector<Eigen::MatrixXd>& C
 void MultiGroupNode::updateTransverseLeakage(int direction, int group)
 {
 	DL[direction](0, group) = 0.0;
+
 	for (int i = 1; i < dim; i++)
 	{
 		const int v = (direction + i) % dim;
-		DL[direction](0, group) += (getSurfaceNetCurrent(v, RIGHT_SIDE, group) - getSurfaceNetCurrent(v, LEFT_SIDE, group)) / node_width[v];
+		const double J_right = getSurfaceNetCurrent(v, RIGHT_SIDE, group);
+		const double J_left = getSurfaceNetCurrent(v, LEFT_SIDE, group);
+
+		DL[direction](0, group) += (J_right - J_left) / node_width[v];
 	}
 
+	// TL 계수 업데이트
 	const double beta_c = getBeta(direction, group);
 	const double d_c = D_c[group];
 	const double DL0_c = DL[direction](0, group);
 	const double h_c = node_width[direction];
 
+	// 이웃 노드 참조
 	l_node = getNeighborNode(direction, LEFT_SIDE);
 	r_node = getNeighborNode(direction, RIGHT_SIDE);
 
@@ -123,12 +128,10 @@ void MultiGroupNode::updateTransverseLeakage(int direction, int group)
 	const double DL0_l = (l_node ? l_node->getAverageTransverseLeakage(direction, group) : DL0_c);
 	const double DL0_r = (r_node ? r_node->getAverageTransverseLeakage(direction, group) : DL0_c);
 
-	// 왼쪽 및 오른쪽 누출 계수(L_l, L_r) 계산
+	// TL 보정
 	L_l = (DL0_l / h_l + DL0_c / h_c) / (beta_l + beta_c);
 	L_r = (DL0_c / h_c + DL0_r / h_r) / (beta_c + beta_r);
 
-	// 최종 횡단 누출량 업데이트
-	DL[direction](0, group) = DL0_c;
 	DL[direction](1, group) = d_c * (L_r - L_l) / 2.0;
 	DL[direction](2, group) = d_c * (L_r + L_l - 2.0 * DL0_c / d_c) / 2.0;
 }
@@ -140,7 +143,7 @@ double MultiGroupNode::getNodeWidth(int direction) const
 
 double MultiGroupNode::getAverageTransverseLeakage(int direction, int group) const
 {
-	return DL[direction](0, group);
+	return DL[direction](0, group); //+ DL[direction](1,group)*2*direction/node_width[direction] + DL[direction](2, group)*(6*node_width[direction]*node_width[direction]-0.5);
 }
 
 double MultiGroupNode::getBeta(int direction, int number_of_group) const
@@ -175,23 +178,18 @@ double MultiGroupNode::getIncomingCurrent(int direction, bool side, int number_o
 
 
 double MultiGroupNode::getSurfaceFlux(int direction, bool side, int number_of_group) const {
-	MultiGroupNode* node = getNeighborNode(direction, side);
-	if (!node) {
-		// 반사 경계 조건 적용 (현재 값 유지)
-		return flux_avg[number_of_group];
-	}
-	const double j_in = node->getIncomingCurrent(direction, side, number_of_group);
-	const double j_out = node->out_current[direction](!side, number_of_group);
+	const double j_in = getIncomingCurrent(direction, side, number_of_group);
+	const double j_out = out_current[direction](side, number_of_group);
 	return 2 * (j_in + j_out);
 }
 
 double MultiGroupNode::getSurfaceNetCurrent(int direction, bool side, int number_of_group) const {
 	const double j_in = getIncomingCurrent(direction, side, number_of_group);
 	const double j_out = out_current[direction](side, number_of_group);
-	if (side == LEFT_SIDE) {
+	if (side == LEFT_SIDE)
 		return j_in - j_out;
-	}
-	return j_out - j_in;
+	else
+		return j_out - j_in;
 }
 
 MultiGroupNode* MultiGroupNode::getNeighborNode(int direction, bool side) const {
