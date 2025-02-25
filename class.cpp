@@ -419,7 +419,7 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 		out_current[i] = new double* [2];
 		for (int j = 0; j < 2; ++j) {
 			out_current[i][j] = new double[group];
-			std::fill(out_current[i][j], out_current[i][j] + group, 1.0); // 1.0으로 초기화
+			std::fill(out_current[i][j], out_current[i][j] + group, 0.0);
 		}
 	}
 
@@ -768,4 +768,9 @@ bool MultiGroupNode::checkConvergence(double ERROR) const
 		}
 	}
 	return true;
+}
+
+void MultiGroupNode::normalizeFluxAvg(double max_flux_avg, int group) 
+{
+	flux_avg[group] /= max_flux_avg;
 }

@@ -64,4 +64,5 @@ public:
     int getNumberOfGroups() const { return number_of_groups; }
     double getFlux(int group) const { return flux_avg[group]; }
     double getCurrent(int dimension) const { return out_current[dimension][0][0]; }
+	void normalizeFluxAvg(double max_flux_avg, int group);
 };
