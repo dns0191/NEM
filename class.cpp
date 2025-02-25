@@ -331,7 +331,7 @@ std::string MultiGroupNode::getBoundaryConditionString(int direction, bool side)
 
 void MultiGroupNode::getNodeInformation() const
 {
-	std::ofstream debugFile("debug.out", std::ios_base::app);
+	std::ofstream debugFile("debug.txt", std::ios_base::app);
 	if (!debugFile.is_open()) {
 		std::cerr << "Unable to open debug.out file.\n";
 		return;

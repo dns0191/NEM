@@ -69,8 +69,8 @@ public:
     double getFlux(int group) const { return flux_avg[group]; }
     double getCurrent(int dimension) const { return out_current[dimension](1, 1); }
     void setBoundaryCondition(int direction, bool side, BoundaryCondition condition);
-    void normalizeFluxAvg(double max_flux_avg) {
-    	flux_avg /= max_flux_avg;
+    void normalizeFluxAvg(double max_flux_avg, int group) {
+    	flux_avg[group] /= max_flux_avg;
     }
     std::string getBoundaryConditionString(int direction, bool side) const;
 };

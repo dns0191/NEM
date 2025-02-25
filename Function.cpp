@@ -109,7 +109,7 @@ double initializeNodesFromInput(const std::string& filename) {
                 int region = BENCH[index];
 
                 if (region == 0) {
-                    nodeGrid2D[x][y] = nullptr;
+                    continue;
                 }
                 else {
                     try {
@@ -155,6 +155,7 @@ double initializeNodesFromInput(const std::string& filename) {
 
     return error;
 }
+
 
 
 
