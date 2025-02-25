@@ -88,25 +88,6 @@ double initializeNodesFromInput(const std::string& filename) {
     }
     file.close();
 
-    // Debug print statements
-    std::cout << "DIM: " << DIM << "\n";
-    std::cout << "GROUP_NUM: " << GROUP_NUM << "\n";
-    std::cout << "nodeWidths: ";
-    for (const auto& width : nodeWidths) {
-        std::cout << width << " ";
-    }
-    std::cout << "\n";
-    std::cout << "BENCH: ";
-    for (const auto& bench : BENCH) {
-        std::cout << bench << " ";
-    }
-    std::cout << "\n";
-    std::cout << "avgFluxValues: ";
-    for (const auto& flux : avgFluxValues) {
-        std::cout << flux << " ";
-    }
-    std::cout << "\n";
-
     if (DIM == 2) {
         if (x_size == 0 || y_size == 0) {
             throw std::runtime_error("Error: Invalid grid size (x_size or y_size is zero).");
@@ -122,8 +103,6 @@ double initializeNodesFromInput(const std::string& filename) {
 
         nodeGrid2D.resize(x_size, std::vector<MultiGroupNode*>(y_size, nullptr));
 
-        std::cout << "Initializing 2D node grid: " << x_size << "x" << y_size << "\n";
-
         for (size_t x = 0; x < x_size; ++x) {
             for (size_t y = 0; y < y_size; ++y) {
                 size_t index = x * y_size + y;
@@ -137,7 +116,6 @@ double initializeNodesFromInput(const std::string& filename) {
                         Eigen::VectorXd node_widths = Eigen::VectorXd::Map(nodeWidths.data(), DIM);
                         nodeGrid2D[x][y] = new MultiGroupNode(static_cast<int>(index), region, GROUP_NUM, 2, node_widths);
                         nodeGrid2D[x][y]->setFluxAvg(avgFluxValues);
-                        std::cout << "Created node (" << x << ", " << y << ") with ID " << index << ", region " << region << "\n";
                     }
                     catch (const std::exception& e) {
                         std::cerr << "Error initializing node (" << x << ", " << y << "): " << e.what() << "\n";
@@ -146,10 +124,38 @@ double initializeNodesFromInput(const std::string& filename) {
                 }
             }
         }
+
+        // 경계 조건 설정
+        for (size_t x = 0; x < x_size; ++x) {
+            for (size_t y = 0; y < y_size; ++y) {
+                if (nodeGrid2D[x][y] != nullptr) {
+                    // 기본적으로 모든 면을 반사 조건으로 설정
+                    nodeGrid2D[x][y]->setBoundaryCondition(0, LEFT_SIDE, REFLECTIVE);
+                    nodeGrid2D[x][y]->setBoundaryCondition(0, RIGHT_SIDE, REFLECTIVE);
+                    nodeGrid2D[x][y]->setBoundaryCondition(1, LEFT_SIDE, REFLECTIVE);
+                    nodeGrid2D[x][y]->setBoundaryCondition(1, RIGHT_SIDE, REFLECTIVE);
+
+                    // BENCH에 0이 있는 경우 이웃한 면을 진공 조건으로 설정
+                    if (x > 0 && BENCH[(x - 1) * y_size + y] == 0) {
+                        nodeGrid2D[x][y]->setBoundaryCondition(0, LEFT_SIDE, VACUUM);
+                    }
+                    if (x < x_size - 1 && BENCH[(x + 1) * y_size + y] == 0) {
+                        nodeGrid2D[x][y]->setBoundaryCondition(0, RIGHT_SIDE, VACUUM);
+                    }
+                    if (y > 0 && BENCH[x * y_size + (y - 1)] == 0) {
+                        nodeGrid2D[x][y]->setBoundaryCondition(1, LEFT_SIDE, VACUUM);
+                    }
+                    if (y < y_size - 1 && BENCH[x * y_size + (y + 1)] == 0) {
+                        nodeGrid2D[x][y]->setBoundaryCondition(1, RIGHT_SIDE, VACUUM);
+                    }
+                }
+            }
+        }
     }
 
     return error;
 }
+
 
 
 void debugPrintNodes() {

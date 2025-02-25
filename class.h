@@ -13,6 +13,14 @@ extern std::vector<MultiGroupNode*> nodeGrid1D;
 extern std::vector<std::vector<MultiGroupNode*>> nodeGrid2D;
 extern std::vector<std::vector<std::vector<MultiGroupNode*>>> nodeGrid3D;
 
+extern const bool LEFT_SIDE;
+extern const bool RIGHT_SIDE;
+
+enum BoundaryCondition {
+    REFLECTIVE,
+    VACUUM
+};
+
 class MultiGroupNode {
 private:
     int number_of_groups, dim, id, region;
@@ -23,6 +31,7 @@ private:
     Eigen::MatrixXd A, MM, mg_xs;
 	std::vector<Eigen::MatrixXd> M3, M4, Q, C_m, out_current;
     MultiGroupNode* l_node, * r_node;
+    std::unordered_map<int, std::unordered_map<bool, BoundaryCondition>> boundaryConditions;
 
     void makeOneDimensionalFlux(std::vector<Eigen::MatrixXd>& C);
     void updateAverageFlux(std::vector<Eigen::MatrixXd>& C);
@@ -59,4 +68,9 @@ public:
     int getNumberOfGroups() const { return number_of_groups; }
     double getFlux(int group) const { return flux_avg[group]; }
     double getCurrent(int dimension) const { return out_current[dimension](1, 1); }
+    void setBoundaryCondition(int direction, bool side, BoundaryCondition condition);
+    void normalizeFluxAvg(double max_flux_avg) {
+    	flux_avg /= max_flux_avg;
+    }
+    std::string getBoundaryConditionString(int direction, bool side) const;
 };

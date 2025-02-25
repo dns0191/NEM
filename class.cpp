@@ -13,8 +13,8 @@ std::vector<MultiGroupNode*> nodeGrid1D;
 std::vector<std::vector<MultiGroupNode*>> nodeGrid2D;
 std::vector<std::vector<std::vector<MultiGroupNode*>>> nodeGrid3D;
 
-constexpr auto LEFT_SIDE = false;
-constexpr auto RIGHT_SIDE = true;
+const bool LEFT_SIDE = false;
+const bool RIGHT_SIDE = true;
 
 void MultiGroupNode::makeOneDimensionalFlux(std::vector<Eigen::MatrixXd>& C)
 {
@@ -100,36 +100,36 @@ void MultiGroupNode::updateOutgoingCurrent(const std::vector<Eigen::MatrixXd>& C
 
 void MultiGroupNode::updateTransverseLeakage(int direction, int group)
 {
-    DL[direction](0, group) = 0.0;
-    for (int i = 1; i < dim; i++)
-    {
-        const int v = (direction + i) % dim;
-        DL[direction](0, group) += (getSurfaceNetCurrent(v, RIGHT_SIDE, group) - getSurfaceNetCurrent(v, LEFT_SIDE, group)) / node_width[v];
-    }
+	DL[direction](0, group) = 0.0;
+	for (int i = 1; i < dim; i++)
+	{
+		const int v = (direction + i) % dim;
+		DL[direction](0, group) += (getSurfaceNetCurrent(v, RIGHT_SIDE, group) - getSurfaceNetCurrent(v, LEFT_SIDE, group)) / node_width[v];
+	}
 
-    const double beta_c = getBeta(direction, group);
-    const double d_c = D_c[group];
-    const double DL0_c = DL[direction](0, group);
-    const double h_c = node_width[direction];
+	const double beta_c = getBeta(direction, group);
+	const double d_c = D_c[group];
+	const double DL0_c = DL[direction](0, group);
+	const double h_c = node_width[direction];
 
-    l_node = getNeighborNode(direction, LEFT_SIDE);
-    r_node = getNeighborNode(direction, RIGHT_SIDE);
+	l_node = getNeighborNode(direction, LEFT_SIDE);
+	r_node = getNeighborNode(direction, RIGHT_SIDE);
 
-    const double h_l = (l_node ? l_node->node_width[direction] : h_c);
-    const double h_r = (r_node ? r_node->node_width[direction] : h_c);
-    const double beta_l = (l_node ? l_node->getBeta(direction, group) : beta_c);
-    const double beta_r = (r_node ? r_node->getBeta(direction, group) : beta_c);
-    const double DL0_l = (l_node ? l_node->getAverageTransverseLeakage(direction, group) : DL0_c);
-    const double DL0_r = (r_node ? r_node->getAverageTransverseLeakage(direction, group) : DL0_c);
+	const double h_l = (l_node ? l_node->node_width[direction] : h_c);
+	const double h_r = (r_node ? r_node->node_width[direction] : h_c);
+	const double beta_l = (l_node ? l_node->getBeta(direction, group) : beta_c);
+	const double beta_r = (r_node ? r_node->getBeta(direction, group) : beta_c);
+	const double DL0_l = (l_node ? l_node->getAverageTransverseLeakage(direction, group) : DL0_c);
+	const double DL0_r = (r_node ? r_node->getAverageTransverseLeakage(direction, group) : DL0_c);
 
-    // 왼쪽 및 오른쪽 누출 계수(L_l, L_r) 계산
-    L_l = (DL0_l / h_l + DL0_c / h_c) / (beta_l + beta_c);
-    L_r = (DL0_c / h_c + DL0_r / h_r) / (beta_c + beta_r);
+	// 왼쪽 및 오른쪽 누출 계수(L_l, L_r) 계산
+	L_l = (DL0_l / h_l + DL0_c / h_c) / (beta_l + beta_c);
+	L_r = (DL0_c / h_c + DL0_r / h_r) / (beta_c + beta_r);
 
-    // 최종 횡단 누출량 업데이트
+	// 최종 횡단 누출량 업데이트
 	DL[direction](0, group) = DL0_c;
-    DL[direction](1, group) = d_c * (L_r - L_l) / 2.0;
-    DL[direction](2, group) = d_c * (L_r + L_l - 2.0 * DL0_c / d_c) / 2.0;
+	DL[direction](1, group) = d_c * (L_r - L_l) / 2.0;
+	DL[direction](2, group) = d_c * (L_r + L_l - 2.0 * DL0_c / d_c) / 2.0;
 }
 
 double MultiGroupNode::getNodeWidth(int direction) const
@@ -155,11 +155,23 @@ double MultiGroupNode::getDiffusionCoefficient(int number_of_group) const
 double MultiGroupNode::getIncomingCurrent(int direction, bool side, int number_of_group) const {
 	MultiGroupNode* node = getNeighborNode(direction, side);
 	if (!node) {
-		// 반사 경계 조건 적용 (현재 값 유지)
-		return out_current[direction](side, number_of_group);
+		// 경계 조건 적용  
+		const auto it = boundaryConditions.find(direction);
+		if (it != boundaryConditions.end() && it->second.find(side) != it->second.end()) {
+			const BoundaryCondition condition = it->second.at(side);
+			if (condition == REFLECTIVE) {
+				return out_current[direction](side, number_of_group);
+			}
+			else
+				return 0.0;
+		}
+		else
+			return 0.0;
 	}
-	return node->out_current[direction](!side, number_of_group);
+	else
+		return node->out_current[direction](!side, number_of_group);
 }
+
 
 double MultiGroupNode::getSurfaceFlux(int direction, bool side, int number_of_group) const {
 	MultiGroupNode* node = getNeighborNode(direction, side);
@@ -167,7 +179,7 @@ double MultiGroupNode::getSurfaceFlux(int direction, bool side, int number_of_gr
 		// 반사 경계 조건 적용 (현재 값 유지)
 		return flux_avg[number_of_group];
 	}
-	const double j_in = node->getIncomingCurrent(direction, !side, number_of_group);
+	const double j_in = node->getIncomingCurrent(direction, side, number_of_group);
 	const double j_out = node->out_current[direction](!side, number_of_group);
 	return 2 * (j_in + j_out);
 }
@@ -175,13 +187,15 @@ double MultiGroupNode::getSurfaceFlux(int direction, bool side, int number_of_gr
 double MultiGroupNode::getSurfaceNetCurrent(int direction, bool side, int number_of_group) const {
 	const double j_in = getIncomingCurrent(direction, side, number_of_group);
 	const double j_out = out_current[direction](side, number_of_group);
+	if (side == LEFT_SIDE) {
+		return j_in - j_out;
+	}
 	return j_out - j_in;
 }
 
 MultiGroupNode* MultiGroupNode::getNeighborNode(int direction, bool side) const {
 	// 1D 저장소일 경우
 	if (dim == 1) {
-		// neighbor_node 초기값을 -1로 설정했으므로, 유효하지 않은 경우 nullptr 반환
 		const int neighbor_id = neighbor_node[side][0];
 		if (neighbor_id >= 0 && neighbor_id < static_cast<int>(nodeGrid1D.size())) {
 			return nodeGrid1D[neighbor_id];
@@ -190,8 +204,8 @@ MultiGroupNode* MultiGroupNode::getNeighborNode(int direction, bool side) const 
 	// 2D 저장소일 경우
 	else if (dim == 2) {
 		const int y_size = static_cast<int>(nodeGrid2D[0].size());
-		const int x = id / y_size;   
-		const int y = id % y_size;   
+		const int x = id / y_size;
+		const int y = id % y_size;
 
 		if (direction == 0) { // X 방향
 			const int neighbor_x = (side == LEFT_SIDE) ? x - 1 : x + 1;
@@ -225,7 +239,7 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	D_c = Eigen::VectorXd::Zero(group);
 	mg_xs = Eigen::MatrixXd::Zero(group, 4);
 
-	
+
 	const auto& xs_data = crossSections[region];
 	for (int g = 0; g < group; g++) {
 		for (int i = 0; i < 4; i++) {
@@ -234,7 +248,7 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	}
 	for (int i = 0; i < group; i++)
 	{
-		D_c[i] = mg_xs(i,0);
+		D_c[i] = mg_xs(i, 0);
 	}
 	DL.resize(dimension, Eigen::MatrixXd::Zero(3, group));
 	A = Eigen::MatrixXd::Zero(group, group);
@@ -242,12 +256,12 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	for (int i = 0; i < group; ++i) {
 		A(i, i) = mg_xs(i, 1);
 	}
-	
+
 	if (group > 1) {
 		constexpr double k_eff = 1.0;
 		A(0, 0) = mg_xs(0, 1) - (mg_xs(0, 3) / k_eff);
 		A(0, 1) = -(mg_xs(1, 3) / k_eff);
-		A(1, 0) = -mg_xs(1, 2); 
+		A(1, 0) = -mg_xs(1, 2);
 		A(1, 1) = mg_xs(1, 1);
 	}
 
@@ -301,6 +315,20 @@ MultiGroupNode::~MultiGroupNode()
 	delete[] neighbor_node[1];
 }
 
+std::string MultiGroupNode::getBoundaryConditionString(int direction, bool side) const {
+	const auto it = boundaryConditions.find(direction);
+	if (it != boundaryConditions.end() && it->second.find(side) != it->second.end()) {
+		const BoundaryCondition condition = it->second.at(side);
+		switch (condition) {
+		case REFLECTIVE:
+			return "REFLECTIVE";
+		case VACUUM:
+			return "VACUUM";
+		}
+	}
+	return "NONE";
+}
+
 void MultiGroupNode::getNodeInformation() const
 {
 	std::ofstream debugFile("debug.out", std::ios_base::app);
@@ -323,6 +351,14 @@ void MultiGroupNode::getNodeInformation() const
 	debugFile << "Flux Average: ";
 	for (int i = 0; i < number_of_groups; ++i) {
 		debugFile << flux_avg[i] << " ";
+	}
+	debugFile << "\n";
+
+	debugFile << "Boundary Conditions:\n";
+	for (int direction = 0; direction < dim; ++direction) {
+		debugFile << "  Direction " << direction << ":\n";
+		debugFile << "    Left Side: " << getBoundaryConditionString(direction, LEFT_SIDE) << "\n";
+		debugFile << "    Right Side: " << getBoundaryConditionString(direction, RIGHT_SIDE) << "\n";
 	}
 	debugFile << "\n";
 
@@ -375,7 +411,7 @@ void MultiGroupNode::getNodeInformation() const
 		}
 		debugFile << "\n";
 	}
-	
+
 	debugFile << "M4\n";
 	for (int i = 0; i < dim; i++) {
 		for (int j = 0; j < number_of_groups; j++) {
@@ -411,7 +447,7 @@ void MultiGroupNode::getNodeInformation() const
 
 	debugFile << "s values:\n";
 	for (int i = 0; i < number_of_groups; i++) {
-		debugFile <<SRC[i] << " ";
+		debugFile << SRC[i] << " ";
 	}
 	debugFile << "\n\n";
 
@@ -485,4 +521,8 @@ bool MultiGroupNode::checkConvergence(double ERROR) const
 		}
 	}
 	return true;
+}
+
+void MultiGroupNode::setBoundaryCondition(int direction, bool side, BoundaryCondition condition) {
+	boundaryConditions[direction][side] = condition;
 }
