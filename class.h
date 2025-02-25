@@ -60,6 +60,7 @@ public:
 
     // 이동 할당 연산자
     MultiGroupNode& operator=(MultiGroupNode&& other) noexcept = default;
+	int getDimension() const;
     void getNodeInformation() const;
     void runNEM();
     void setFluxAvg(const std::vector<double>& avgFluxValues);
@@ -67,10 +68,18 @@ public:
     int getId() const { return id; }
     int getNumberOfGroups() const { return number_of_groups; }
     double getFlux(int group) const { return flux_avg[group]; }
-    double getCurrent(int dimension) const { return out_current[dimension](1, 1); }
+    double getCurrent(int dimension, int direction, int group) const { return out_current[dimension](direction, group); }
     void setBoundaryCondition(int direction, bool side, BoundaryCondition condition);
     void normalizeFluxAvg(double max_flux_avg, int group) {
     	flux_avg[group] /= max_flux_avg;
+    }
+    void normalizeOutCurrent(double max_out_current, int group) {
+        if (max_out_current > 0) { // 0으로 나누는 오류 방지
+            for (int u = 0; u < dim; u++) {
+                out_current[u].row(0) /= max_out_current; // 왼쪽 값 정규화
+                out_current[u].row(1) /= max_out_current; // 오른쪽 값 정규화
+            }
+        }
     }
     std::string getBoundaryConditionString(int direction, bool side) const;
 };

@@ -526,3 +526,8 @@ bool MultiGroupNode::checkConvergence(double ERROR) const
 void MultiGroupNode::setBoundaryCondition(int direction, bool side, BoundaryCondition condition) {
 	boundaryConditions[direction][side] = condition;
 }
+
+int MultiGroupNode::getDimension() const
+{
+	return dim;
+}

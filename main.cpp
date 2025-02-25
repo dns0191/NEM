@@ -39,13 +39,13 @@ int main() {
         while (!totalConvergence(error)) {
             outputFile << std::setw(5) << step;
             double* max_flux_avg = new double[2] {0.0, 0.0};
-
+            double* max_out_current = new double[2] {0.0, 0.0};
             for (const auto& row : nodeGrid2D) {
                 for (const auto& node : row) {
                     if (node != nullptr) {
-                        outputFile << std::setw(15) << std::scientific << node->getFlux(1);
+                        outputFile << std::setw(15) << std::scientific << node->getFlux(0);
                         node->runNEM();
-                        node->getNodeInformation();
+                        
                     }
                     else {
                        continue;
@@ -59,6 +59,14 @@ int main() {
                         for (int i = 0; i < node->getNumberOfGroups(); i++) {
                             if (node->getFlux(i) > max_flux_avg[i])
                                 max_flux_avg[i] = node->getFlux(i);
+                            for (int u = 0; u < node->getDimension(); u++) {
+                                for (int j = 0; j < 2; j++) { // j=0: left, j=1: right
+                                    double out_val = node->getCurrent(u, j, i);
+                                    if (out_val > max_out_current[i]) {
+                                        max_out_current[i] = std::abs(out_val);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -70,7 +78,9 @@ int main() {
                     if (node != nullptr) {
                         for (int i = 0; i < node->getNumberOfGroups(); i++) {
                             node->normalizeFluxAvg(max_flux_avg[i], i);
+							node->normalizeOutCurrent(max_out_current[i], i);
                         }
+                        node->getNodeInformation();
                     }
                 }
             }
