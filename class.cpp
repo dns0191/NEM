@@ -92,6 +92,7 @@ void MultiGroupNode::updateOutgoingCurrent(const std::vector<Eigen::MatrixXd>& C
 
 			out_current[u](0, g) = j_out_l;
 			out_current[u](1, g) = j_out_r;
+			std::cout << "Node " << id << " Group " << g << " Current " << u << " Left " << out_current[u](0,g) << " Right " << out_current[u](1, g) << std::endl;
 		}
 	}
 }
