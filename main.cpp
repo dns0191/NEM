@@ -40,19 +40,28 @@ int main() {
             outputFile << std::setw(5) << step;
             double* max_flux_avg = new double[2] {0.0, 0.0};
             double* max_out_current = new double[2] {0.0, 0.0};
+
+            // 각 노드의 계산 결과를 저장할 벡터
+            std::vector<std::vector<Eigen::VectorXd>> new_flux_avg(nodeGrid2D.size(), std::vector<Eigen::VectorXd>(nodeGrid2D[0].size()));
+            std::vector<std::vector<std::vector<Eigen::MatrixXd>>> new_out_current(nodeGrid2D.size(), std::vector<std::vector<Eigen::MatrixXd>>(nodeGrid2D[0].size()));
+
+            // 모든 노드의 계산을 독립적으로 수행
             for (const auto& row : nodeGrid2D) {
                 for (const auto& node : row) {
                     if (node != nullptr) {
-                        //outputFile << std::setw(15) << std::scientific << node->getCurrent(1,1,0);
-						outputFile << std::setw(15) << std::scientific << node->getFlux(0);
+                        outputFile << std::setw(15) << std::scientific << node->getFlux(0);
                         node->runNEM();
-                        
+
+                        // 계산 결과를 저장
+                        new_flux_avg[node->getId() / nodeGrid2D[0].size()][node->getId() % nodeGrid2D[0].size()] = node->getFluxAvg();
+                        new_out_current[node->getId() / nodeGrid2D[0].size()][node->getId() % nodeGrid2D[0].size()] = node->getOutCurrent();
                     }
                     else {
-                       continue;
+                        continue;
                     }
                 }
             }
+
             // 모든 노드의 flux_avg 중 최대값 찾기
             for (const auto& row : nodeGrid2D) {
                 for (const auto& node : row) {
@@ -78,8 +87,8 @@ int main() {
                 for (MultiGroupNode* node : row) {
                     if (node != nullptr) {
                         for (int i = 0; i < node->getNumberOfGroups(); i++) {
-                            //node->normalizeFluxAvg(max_flux_avg[i], i);
-							//node->normalizeOutCurrent(max_out_current[i], i);
+                            node->normalizeFluxAvg(max_flux_avg[i], i);
+                            // node->normalizeOutCurrent(max_out_current[i], i);
                         }
                         node->getNodeInformation();
                     }
