@@ -61,10 +61,9 @@ void MultiGroupNode::updateAverageFlux(std::vector<Eigen::MatrixXd>& C)
 	MM = A;
 	for (int u = 0; u < dim; u++)
 	{
-		const double node_width_u = node_width[u];
-		MM.diagonal().array() += 12.0 * Q[u].row(0).array() / node_width_u;
+		MM.diagonal().array() += 12.0 * Q[u].row(0).array() / node_width[u];
 	}
-
+	std::cout << MM << std::endl;
 	for (int g = 0; g < ng; g++)
 	{
 		for (int u = 0; u < dim; u++)
@@ -502,9 +501,8 @@ void MultiGroupNode::getNodeInformation() const
 
 void MultiGroupNode::runNEM()
 {
-	const int ng = number_of_groups;
 	for (int u = 0; u < dim; u++)
-		for (int g = 0; g < ng; g++)
+		for (int g = 0; g < number_of_groups; g++)
 			updateTransverseLeakage(u, g);
 
 	makeOneDimensionalFlux(C_m);

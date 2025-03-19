@@ -87,8 +87,8 @@ int main() {
                 for (MultiGroupNode* node : row) {
                     if (node != nullptr) {
                         for (int i = 0; i < node->getNumberOfGroups(); i++) {
-                            node->normalizeFluxAvg(max_flux_avg[i], i);
-                            // node->normalizeOutCurrent(max_out_current[i], i);
+                            //node->normalizeFluxAvg(max_flux_avg[i], i);
+                            //node->normalizeOutCurrent(max_out_current[i], i);
                         }
                         node->getNodeInformation();
                     }
