@@ -363,3 +363,5 @@ MigrationBackup/
 FodyWeavers.xsd
 /output.out
 /새 Microsoft Excel 워크시트.xlsx
+/debug.txt
+/output.txt
