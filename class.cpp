@@ -41,14 +41,11 @@ void MultiGroupNode::makeOneDimensionalFlux(std::vector<Eigen::MatrixXd>& C)
 		SRC1 += A * C[u].row(1).transpose();
 		SRC2 += A * C[u].row(2).transpose();
 
-		Eigen::VectorXd C_row_3 = C[u].row(3);
-		Eigen::VectorXd C_row_4 = C[u].row(4);
+		Eigen::PartialPivLU<Eigen::MatrixXd> solver_M3(M3[u]);
+		Eigen::PartialPivLU<Eigen::MatrixXd> solver_M4(M4[u]);
 
-		C_row_3 = M3[u].inverse() * SRC1;
-		C_row_4 = M4[u].inverse() * SRC2;
-
-		C[u].row(3) = C_row_3;
-		C[u].row(4) = C_row_4;
+		C[u].row(3) = solver_M3.solve(SRC1);
+		C[u].row(4) = solver_M4.solve(SRC2);
 	}
 }
 
@@ -61,9 +58,8 @@ void MultiGroupNode::updateAverageFlux(std::vector<Eigen::MatrixXd>& C)
 	MM = A;
 	for (int u = 0; u < dim; u++)
 	{
-		MM.diagonal().array() += 12.0 * Q[u].row(0).array() / node_width[u];
+		MM.diagonal() += 12.0 * Q[u].row(0) / node_width[u];
 	}
-	std::cout << MM << std::endl;
 	for (int g = 0; g < ng; g++)
 	{
 		for (int u = 0; u < dim; u++)
@@ -264,6 +260,12 @@ MultiGroupNode::MultiGroupNode(int node_id, int node_region, int group, int dime
 	}
 
 	out_current.resize(dimension, Eigen::MatrixXd::Zero(2, group));
+	for (int u = 0; u < dimension; ++u) {
+		for (int g = 0; g < group; ++g) {
+			out_current[u](0, g) = 0.1;  
+			out_current[u](1, g) = 0.1; 
+		}
+	}
 
 	M3.resize(dim, Eigen::MatrixXd::Zero(group, group));
 	M4.resize(dim, Eigen::MatrixXd::Zero(group, group));
@@ -497,6 +499,95 @@ void MultiGroupNode::getNodeInformation() const
 	debugFile << "\n\n";
 
 	debugFile.close();
+}
+
+void MultiGroupNode::getNodeInformationRaw() const{
+	std::ofstream debugFile("debug.txt", std::ios_base::app);
+	if (!debugFile.is_open()) {
+		std::cerr << "Unable to open debug.out file.\n";
+		return;
+	}
+	debugFile << "Node ID: " << id << "\n";
+	debugFile << "Region: " << region << "\n";
+	debugFile << "Number of Groups: " << number_of_groups << "\n";
+	debugFile << "Dimension: " << dim << "\n";
+	debugFile << "Node Width: ";
+	for (int i = 0; i < dim; ++i) {
+		debugFile << node_width[i] << " ";
+	}
+	debugFile << "\n";
+	debugFile << "Flux Average: ";
+	for (int i = 0; i < number_of_groups; ++i) {
+		debugFile << flux_avg[i] << " ";
+	}
+	debugFile << "\n";
+	debugFile << "Boundary Conditions:\n";
+	for (int direction = 0; direction < dim; ++direction) {
+		debugFile << "  Direction " << direction << ":\n";
+		debugFile << "    Left Side: " << getBoundaryConditionString(direction, LEFT_SIDE) << "\n";
+		debugFile << "    Right Side: " << getBoundaryConditionString(direction, RIGHT_SIDE) << "\n";
+	}
+	debugFile << "\n";
+	debugFile << std::fixed << std::setprecision(3);
+	for (int g = 0; g < number_of_groups; ++g) {
+		debugFile << mg_xs(g) << "\n";
+	}
+	debugFile << "\n";
+	debugFile << "A values:\n";
+	debugFile << A << "\n";
+	debugFile << "\n";
+	debugFile << "D values:\n";
+	debugFile << D_c << "\n";
+	debugFile << "\n";
+	debugFile << std::scientific;
+	debugFile << "M1\n";
+	debugFile << SRC << "\n";
+	debugFile << "M2\n";
+	debugFile << SRC1 << "\n";
+	debugFile << "M3\n";
+	for (int i = 0; i < dim; i++) {
+		debugFile << M3[i] << "\n";
+	}
+	debugFile << "M4\n";
+	for (int i = 0; i < dim; i++) {
+		debugFile << M4[i] << "\n";
+	}
+	debugFile << "Q values:\n";
+	for (int i = 0; i < dim; i++) {
+		debugFile << Q[i] << "\n";
+	}
+	debugFile << "MM values:\n";
+	debugFile << MM << "\n";
+	debugFile << "\n";
+	debugFile << "s values:\n";
+	for (int i = 0; i < number_of_groups; i++) {
+		debugFile << SRC[i] << "\n";
+	}
+	debugFile << "\n";
+	debugFile << "C_m values:\n";
+	for (int i = 0; i < dim; ++i) {
+		debugFile << C_m[i] << "\n";
+	}
+	debugFile << "\n";
+	debugFile << "DL values:\n";
+	for (int i = 0; i < dim; i++) {
+		debugFile << DL[i] << "\n";
+	}
+	debugFile << "\n";
+	debugFile << "out_current values:\n";
+	for (int i = 0; i < dim; i++) {
+		debugFile << out_current[i] << "\n";
+	}
+	debugFile << "\n";
+	debugFile << "Neighbor Node IDs:\n";
+	for (int direction = 0; direction < dim; ++direction) {
+		const MultiGroupNode* leftNeighbor = getNeighborNode(direction, LEFT_SIDE);
+		const MultiGroupNode* rightNeighbor = getNeighborNode(direction, RIGHT_SIDE);
+		debugFile << "Direction " << direction << ":\n";
+		debugFile << "  Left Neighbor ID: " << (leftNeighbor ? leftNeighbor->id : -1) << "\n";
+		debugFile << "  Right Neighbor ID: " << (rightNeighbor ? rightNeighbor->id : -1) << "\n";
+	}
+	debugFile << "\n\n";
 }
 
 void MultiGroupNode::runNEM()

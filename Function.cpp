@@ -208,5 +208,6 @@ bool totalConvergence(double ERROR)
             }
         }
     }
+	std::cout << "Converged!" << "\n";
     return true;
 }

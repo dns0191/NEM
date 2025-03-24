@@ -62,6 +62,7 @@ public:
 	MultiGroupNode& operator=(MultiGroupNode&& other) noexcept = default;
 	int getDimension() const;
 	void getNodeInformation() const;
+	void getNodeInformationRaw() const;
 	void runNEM();
 	void setFluxAvg(const std::vector<double>& avgFluxValues);
 	bool checkConvergence(double ERROR) const;
@@ -72,14 +73,5 @@ public:
 	double getCurrent(int dimension, int direction, int group) const { return out_current[dimension](direction, group); }
 	std::vector<Eigen::MatrixXd> getOutCurrent() const { return out_current; }
 	void setBoundaryCondition(int direction, bool side, BoundaryCondition condition);
-	void normalizeFluxAvg(double max_flux_avg, int group) { flux_avg[group] /= max_flux_avg; }
-	void normalizeOutCurrent(double max_out_current, int group) {
-		if (max_out_current > 0) { // 0으로 나누는 오류 방지
-			for (int u = 0; u < dim; u++) {
-				out_current[u].row(0) /= max_out_current; // 왼쪽 값 정규화
-				out_current[u].row(1) /= max_out_current; // 오른쪽 값 정규화
-			}
-		}
-	}
 	std::string getBoundaryConditionString(int direction, bool side) const;
 };
